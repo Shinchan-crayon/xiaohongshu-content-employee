@@ -1,0 +1,456 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaohongshu Content Employee Workflow State",
+  "type": "object",
+  "required": [
+    "workflow_id",
+    "state_version",
+    "updated_at",
+    "stage",
+    "status",
+    "artifacts",
+    "blockers",
+    "confirmations",
+    "checkpoint",
+    "transition_log",
+    "next_action"
+  ],
+  "properties": {
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "intake",
+        "research",
+        "angle_confirmation",
+        "drafting",
+        "review",
+        "delivery",
+        "completed"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "IN_PROGRESS",
+        "WAITING_CONFIRMATION",
+        "BLOCKED",
+        "COMPLETED"
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "stage",
+          "status",
+          "reference"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "research",
+              "angle_confirmation",
+              "drafting",
+              "review",
+              "delivery",
+              "completed"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "WAITING_CONFIRMATION",
+              "BLOCKED",
+              "COMPLETED"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "reason",
+          "resolution_needed"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "research",
+              "angle_confirmation",
+              "drafting",
+              "review",
+              "delivery",
+              "completed"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "resolution_needed": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "blocking"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "confirmations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "stage",
+          "question",
+          "status"
+        ],
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "research",
+              "angle_confirmation",
+              "drafting",
+              "review",
+              "delivery",
+              "completed"
+            ]
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "rejected"
+            ]
+          },
+          "answer": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "last_valid_stage",
+        "resume_from",
+        "artifact_refs"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_valid_stage": {
+          "type": "string",
+          "enum": [
+            "intake",
+            "research",
+            "angle_confirmation",
+            "drafting",
+            "review",
+            "delivery",
+            "completed"
+          ]
+        },
+        "resume_from": {
+          "type": "string",
+          "enum": [
+            "intake",
+            "research",
+            "angle_confirmation",
+            "drafting",
+            "review",
+            "delivery",
+            "completed"
+          ]
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "transition_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "from",
+          "to",
+          "status",
+          "reason"
+        ],
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "from": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "research",
+              "angle_confirmation",
+              "drafting",
+              "review",
+              "delivery",
+              "completed"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "enum": [
+              "intake",
+              "research",
+              "angle_confirmation",
+              "drafting",
+              "review",
+              "delivery",
+              "completed"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "WAITING_CONFIRMATION",
+              "BLOCKED",
+              "COMPLETED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from_status": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "WAITING_CONFIRMATION",
+              "BLOCKED",
+              "COMPLETED"
+            ]
+          },
+          "to_status": {
+            "type": "string",
+            "enum": [
+              "IN_PROGRESS",
+              "WAITING_CONFIRMATION",
+              "BLOCKED",
+              "COMPLETED"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "required": [
+        "owner",
+        "summary"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "user"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "intake"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "WAITING_CONFIRMATION",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "research"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "angle_confirmation"
+        },
+        "status": {
+          "enum": [
+            "WAITING_CONFIRMATION"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "drafting"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "review"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "delivery"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
+          "const": "completed"
+        },
+        "status": {
+          "enum": [
+            "COMPLETED"
+          ]
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

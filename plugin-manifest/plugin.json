@@ -1,0 +1,14 @@
+{
+  "name": "xiaohongshu-content-employee",
+  "version": "1.1.0",
+  "description": "将客户产品素材转化为可审核、可追溯的小红书内容与 HTML 交付页。",
+  "skills": [
+    "skills/xhs-content-employee",
+    "skills/product-material-intake",
+    "skills/xhs-research-strategy",
+    "skills/xhs-copy-storyboard",
+    "skills/xhs-humanize-review",
+    "skills/xhs-html-delivery"
+  ],
+  "entry_skill": "skills/xhs-content-employee"
+}

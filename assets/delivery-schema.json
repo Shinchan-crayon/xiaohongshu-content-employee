@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaohongshu Content Employee Delivery",
+  "type": "object",
+  "required": [
+    "project",
+    "evidence",
+    "topics",
+    "titles",
+    "post",
+    "tags",
+    "cover",
+    "carousel",
+    "images",
+    "review"
+  ],
+  "properties": {
+    "project": {"type": "object"},
+    "evidence": {"type": "array"},
+    "topics": {"type": "array"},
+    "titles": {"type": "array"},
+    "post": {"type": "object"},
+    "tags": {"type": "array"},
+    "cover": {"type": "object"},
+    "carousel": {"type": "array"},
+    "images": {"type": "array"},
+    "review": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["PASS", "PASS_WITH_NOTES"]
+        }
+      }
+    }
+  }
+}

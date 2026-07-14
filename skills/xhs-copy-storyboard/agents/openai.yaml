@@ -1,0 +1,6 @@
+interface:
+  display_name: "小红书文案与轮播"
+  short_description: "生成标题、正文、标签、封面文案、逐页脚本和图片方案"
+  default_prompt: "使用 $xhs-copy-storyboard 根据已确认选题生成完整小红书内容包。"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "小红书调研策略"
+  short_description: "拆解参考内容、记录来源并生成有证据边界的选题候选"
+  default_prompt: "使用 $xhs-research-strategy 分析这些参考材料并给出可执行的小红书选题。"
+policy:
+  allow_implicit_invocation: false

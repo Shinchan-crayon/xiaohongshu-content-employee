@@ -1,0 +1,6 @@
+interface:
+  display_name: "小红书 HTML 交付"
+  short_description: "把审核通过的结构化内容生成可复制、预览和下载的交付页面"
+  default_prompt: "使用 $xhs-html-delivery 校验这份内容数据并生成独立 HTML 交付页。"
+policy:
+  allow_implicit_invocation: false
