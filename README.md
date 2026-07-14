@@ -28,14 +28,16 @@
 
 ## Skill 组成
 
-| Skill | 作用 | 调用方式 |
+| Skill | 作用 | 流程角色 |
 | --- | --- | --- |
 | `xhs-content-employee` | 维护状态并编排完整工作流 | 唯一公开入口 |
-| `product-material-intake` | 整理事实、图片、卖点和缺失材料 | 内部阶段 |
-| `xhs-research-strategy` | 建立来源记录并生成选题候选 | 内部阶段 |
-| `xhs-copy-storyboard` | 生成文案、封面和轮播脚本 | 内部阶段 |
-| `xhs-humanize-review` | 执行事实、风险和自然表达审核 | 内部阶段 |
-| `xhs-html-delivery` | 生成独立 HTML 交付页 | 内部阶段 |
+| `product-material-intake` | 整理事实、图片、卖点和缺失材料 | 由主流程调用 |
+| `xhs-research-strategy` | 建立来源记录并生成选题候选 | 由主流程调用 |
+| `xhs-copy-storyboard` | 生成文案、封面和轮播脚本 | 由主流程调用 |
+| `xhs-humanize-review` | 执行事实、风险和自然表达审核 | 由主流程调用 |
+| `xhs-html-delivery` | 生成独立 HTML 交付页 | 由主流程调用 |
+
+“由主流程调用”表示正常使用时由 `xhs-content-employee` 按阶段显式调用。它们仍是独立安装的 Skill，用户可以手动指定；`allow_implicit_invocation: false` 只是不允许 Codex 在没有明确指令时自动选中。
 
 ## 安装
 
@@ -133,10 +135,18 @@ account_voice: object | null
 ## 目录结构
 
 ```text
-plugin-manifest/  产品清单与入口声明
-skills/           6 个可安装的 Codex Skills
-references/       内容规范、审核规则和行业模板
-templates/        HTML 交付模板
-scripts/          安装工具和 HTML 生成工具
-assets/           流程状态与交付数据结构
+xiaohongshu-content-employee/
+├── README.md
+├── plugin-manifest/
+├── skills/
+├── references/
+│   ├── 小红书内容规范/
+│   ├── 审核规则/
+│   └── 行业模板/
+├── templates/
+│   └── HTML交付模板/
+├── scripts/
+│   ├── HTML生成工具/
+│   └── 安装工具/
+└── assets/
 ```
