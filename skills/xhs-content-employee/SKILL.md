@@ -37,6 +37,7 @@ material_links: [url]
 references: [path_or_url]
 target_audience: string | null
 account_voice: object | null
+detector_feedback: object | null
 ```
 
 `material_source_mode` 是素材获取方式。若为空，主控必须先展示以下两个方案并等待用户选择，不得自行推断：
@@ -127,11 +128,14 @@ open_questions: [string]
 
 4. `drafting`
    - 调用 `$xhs-copy-storyboard` 生成标题、正文、封面、轮播脚本、图片使用方案和 `claim_map`。
+   - 文案包必须包含 `structure_choice` 与 `voice_fingerprint`，不得套用唯一固定正文公式。
    - 若生成内容引用了未确认事实，写入阻断项并回退到 `angle_confirmation` 或 `intake`，不能直接润色掩盖。
    - 完成后转入 `review`。
 
 5. `review`
-   - 调用 `$xhs-humanize-review`，严格遵守其既定审核顺序。
+   - 调用 `$xhs-humanize-review`，传入已有 `detector_feedback`，严格遵守其既定审核顺序。
+   - 若返回 `full_rewrite_required: true`，必须保留 `rewrite_proof` 并回退到 `drafting` 做结构性重写，不能在审核阶段只替换词语后直接通过。
+   - 若外部检测反馈显示 AI 特征达到或超过 50%，重写后仍停留在 `review / BLOCKED`，等待复测结果；复测前不得进入 `delivery`。
    - 若审核结果为 `BLOCKED`，当前工作流写入 `stage: review`、`status: BLOCKED`，并在 `next_action` 中明确需要修复的内容。
    - 审核阻断默认回退到 `drafting` 进行修订；如果阻断源头是事实冲突，则直接回退到 `intake`。
    - 审核通过或带备注通过后转入 `delivery`。
