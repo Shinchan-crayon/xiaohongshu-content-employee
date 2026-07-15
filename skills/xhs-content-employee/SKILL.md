@@ -154,10 +154,12 @@ open_questions: [string]
    - 用户选择 `ai_assist` 后，依次进入 `provider_selection`、`plan_review` 和 `prompt_review`：
      - `provider_selection`：展示插件支持的图片渠道与模型选项，等待用户选择渠道、模型、尺寸和质量。
      - `plan_review`：调用 `$xhs-visual-planner`，展示每页任务、页面类型、真实图片使用位置和 AI 场景范围，等待用户确认。
-     - `prompt_review`：逐项展示实际 Prompt、渠道、模型、尺寸和质量，写入待确认记录并保持 `WAITING_CONFIRMATION`。
-   - 只有用户明确确认当前 `prompt_review` 后，才计算并保存 `approval_digest`，把子阶段推进到 `ready`。
+     - `prompt_review`：按轮播顺序一次展示全部页面的实际 Prompt、渠道、模型、尺寸和质量，写入待确认记录并保持 `WAITING_CONFIRMATION`。
+   - 只有用户明确确认整批 `prompt_review` 后，才为每页计算并保存 `approval_digest`，生成批量执行文件，并把子阶段推进到 `ready`。
    - Prompt、渠道、模型、尺寸或质量任何一项变化，都必须使旧批准失效，清除旧 `approval_digest`，回退到 `prompt_review / WAITING_CONFIRMATION`，不得沿用旧批准。
-   - `ready` 之后才允许调用 `$xhs-approved-image-generator`。执行时进入 `generating`；付费请求失败、网络状态不确定或结果无法验证时写入 `BLOCKED` 或 `uncertain`，不得自动重试。
+   - `ready` 之后才允许调用 `$xhs-approved-image-generator`。默认使用 3 个并发任务，可在 1-8 之间调整；页码和交付顺序保持不变。
+   - 执行时进入 `generating`。首个任务失败或状态不确定后停止提交新任务，保留已经在途任务的结果；付费请求不得自动重试。
+   - 恢复执行时读取批量生成状态并跳过已成功页面。存在 `failed` 或 `uncertain` 时写入 `BLOCKED`，等待用户核对渠道后台并决定后续处理。
    - 真实产品包装、颜色、材质、接口、标签和比例不得由 AI 重绘。AI 仅生成场景或背景，最终由图片合成工具输出 1080x1440 PNG。
    - `existing_only` 的规划确认完成，或 `ai_assist` 的全部成品图生成并验证完成后，写入 `substage: complete`，保存 `visual_plan` 和 `generated_images`，再进入 `delivery`。
    - 用户改变文案、封面文字、轮播内容或真实图片后，视觉规划及其下游产物全部失效，回退到 `plan_review`；用户只改变 Prompt 或执行条件时回退到 `prompt_review`。
@@ -185,6 +187,7 @@ open_questions: [string]
 - 发现事实冲突时，必须写入冲突来源、受影响声称和回退原因，并退回 `intake`；不得在 `drafting` 或 `review` 中靠措辞修补。
 - 审核阻断时，必须保留最近一次可用文案包和审核发现；修复完成后从 `drafting` 恢复，再重新进入 `review`。
 - 视觉阶段中断时，从最后一个有效子阶段恢复；没有当前批准哈希时不得从 `ready` 或 `generating` 恢复。
+- 批量生图恢复时必须复用当前 `generation-state.json`，不得重新发送已经成功或状态不确定的付费请求。
 - 文案、封面、轮播或真实产品图改变后，已有 `visual_plan`、Prompt 批准和生成结果不得继续作为当前交付依据。
 - Prompt、渠道、模型、尺寸或质量改变后，旧批准必须失效并回退到 `prompt_review / WAITING_CONFIRMATION`。
 - 人工补齐材料、确认角度或解除阻断后，要新增确认记录并把状态从 `WAITING_CONFIRMATION` 或 `BLOCKED` 恢复为对应阶段的 `IN_PROGRESS`。

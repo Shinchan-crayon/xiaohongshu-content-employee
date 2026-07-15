@@ -1,6 +1,6 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "将产品素材转化为可审核的小红书文案、可选 AI 视觉和 HTML 交付页。",
   "author": {
     "name": "ThinkAI",
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "小红书内容员工",
     "shortDescription": "从产品素材到文案、可选生图和 HTML 交付",
-    "longDescription": "整理产品事实、生成选题与文案、执行自然化审核，并可在用户确认图片方案和 Prompt 后生成 1080x1440 小红书视觉成品。",
+    "longDescription": "整理产品事实、生成选题与文案、执行自然化审核，并可在用户确认图片方案和 Prompt 后并发生成 1080x1440 小红书视觉成品。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [

@@ -43,6 +43,7 @@ IMAGE_GENERATION_RUNTIME_FILES = (
     Path("config.example.json"),
     Path("requirements.txt"),
     Path("scripts") / "生图工具" / "approval_hash.py",
+    Path("scripts") / "生图工具" / "batch_generate.py",
     Path("scripts") / "生图工具" / "configure_provider.py",
     Path("scripts") / "生图工具" / "generate_image.py",
     Path("scripts") / "生图工具" / "provider_preflight.py",

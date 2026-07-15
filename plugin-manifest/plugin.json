@@ -1,6 +1,6 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "将产品素材转化为可审核的小红书文案、可选 AI 视觉和 HTML 交付页。",
   "skills": [
     "skills/xhs-content-employee",
