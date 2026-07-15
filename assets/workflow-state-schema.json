@@ -363,7 +363,9 @@
         },
         "status": {
           "enum": [
-            "IN_PROGRESS"
+            "IN_PROGRESS",
+            "WAITING_CONFIRMATION",
+            "BLOCKED"
           ]
         }
       }

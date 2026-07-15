@@ -32,10 +32,19 @@ content_goal: string
 product_or_service: string
 product_images: [path]
 existing_copy: string | null
+material_source_mode: user_links | internal_search | null
+material_links: [url]
 references: [path_or_url]
 target_audience: string | null
 account_voice: object | null
 ```
+
+`material_source_mode` 是素材获取方式。若为空，主控必须先展示以下两个方案并等待用户选择，不得自行推断：
+
+- 方案 1：用户提供素材链接 -> `user_links`
+- 方案 2：插件内部搜索 -> `internal_search`
+
+`references` 保留用于本地文件、历史参考内容和兼容已有调用；用户选择 `user_links` 时，文章或产品网页应放入 `material_links`。
 
 ## Output Contract
 
@@ -52,6 +61,7 @@ content_package: object | null
 review_result: object | null
 delivery_json: path | null
 delivery_html: path | null
+material_source_selection: user_links | internal_search | null
 open_questions: [string]
 ```
 
@@ -71,10 +81,12 @@ open_questions: [string]
 - `transition_log`: 阶段迁移历史数组，至少记录 `from`、`to`、`status`、`reason`、`sequence` 等字段，用于追踪前进、阻断、回退与恢复。
 - `next_action`: 下一步由谁完成、做什么、依赖什么。
 
+素材获取方式必须写入名为 `material_source_selection` 的确认记录或 artifact，并在恢复执行时继续沿用。用户明确要求切换方案时，才允许更新该记录并重新进入 `intake`。
+
 状态组合必须保持简单且可恢复，只允许以下搭配：
 
 - `intake`: `IN_PROGRESS`、`WAITING_CONFIRMATION`、`BLOCKED`
-- `research`: `IN_PROGRESS`
+- `research`: `IN_PROGRESS`、`WAITING_CONFIRMATION`、`BLOCKED`
 - `angle_confirmation`: `WAITING_CONFIRMATION`
 - `drafting`: `IN_PROGRESS`、`BLOCKED`
 - `review`: `IN_PROGRESS`、`BLOCKED`
@@ -85,14 +97,25 @@ open_questions: [string]
 
 1. `intake`
    - 启动时写入 `stage: intake`、`status: IN_PROGRESS`。
+   - 若 `material_source_mode` 为空，向用户展示“方案 1：用户提供素材链接”和“方案 2：插件内部搜索”，写入待确认的 `material_source_selection`，并切换为 `WAITING_CONFIRMATION`。
+   - 用户选择后，把 `user_links` 或 `internal_search` 写入确认记录和恢复检查点；未确认前不得进入 `research`。
    - 调用 `$product-material-intake`，锁定事实、禁止改写项和缺失材料。
+   - `user_links` 路径要求至少有一个可读取的 `material_links`；缺失时保持 `WAITING_CONFIRMATION` 并请用户补充链接。
+   - `internal_search` 路径允许 `material_links` 为空，由后续 `$xhs-research-strategy` 执行搜索。
    - 若核心事实缺失、图片与文案冲突或存在高风险未知项，写入确认项并切换为 `WAITING_CONFIRMATION`。
    - 若素材本身无法支撑内容目标，记录阻断原因并切换为 `BLOCKED`。
    - 通过后转入 `research`。
 
 2. `research`
-   - 调用 `$xhs-research-strategy`，优先分析客户参考材料；外部调研保持可选。
-   - MCP、网络或外部研究不可用时，不阻塞主流程；把限制写入 `artifacts` 和 `next_action`，继续产生候选选题。
+   - 调用 `$xhs-research-strategy`，并传入已确认的 `material_source_mode`。
+   - `user_links` 路径只读取用户提供的 `material_links` 和 `references`，不得自行扩展内部搜索。
+   - `internal_search` 路径由 `$xhs-research-strategy` 根据产品、内容目标和目标用户构造查询并搜索文章或产品素材。
+   - 若用户选择内部搜索，但网络或搜索能力不可用、或没有找到可验证来源，则记录限制并回退到 `intake / WAITING_CONFIRMATION`，让用户选择重试或改为提供链接；不得用无来源内容补齐。
+   - 搜集完成后保存 `source_review_table`，向用户展示来源、链接和核心信息，写入 `source_confirmation`，并切换为 `research / WAITING_CONFIRMATION`。
+   - 用户明确回复“确认”或“继续”后，将 `source_confirmation` 标记为已确认并恢复 `research / IN_PROGRESS`。用户要求补充或删除来源时，更新台账并重新等待确认。
+   - 来源未确认前不得生成选题或进入 `angle_confirmation`。来源确认只代表素材覆盖得到认可，不代表其中全部声称自动成为事实。
+   - 来源确认后只对数字、归属、因果、比较、功能、效果、认证和引用等高风险事实建立一张 `fact_check`。
+   - `fact_check` 为 `BLOCKED` 时保持 `research / BLOCKED`，删除、修正或补充来源后再继续；通过后才生成选题。
    - 若新发现事实冲突，立即回退到 `intake`，保留冲突记录，不允许在当前阶段绕过。
    - 完成后转入 `angle_confirmation`。
 
@@ -138,6 +161,8 @@ open_questions: [string]
 
 ## Human Confirmation Gates
 
+- 素材获取方式：用户提供素材链接或插件内部搜索。
+- 素材来源确认：查看全部来源与核心信息后，明确回复“确认”或“继续”。
 - 核心产品事实缺失或冲突。
 - 选题与内容角度。
 - `[ASSUMPTION]` 和 `[UNKNOWN]` 是否允许保留。

@@ -12,6 +12,8 @@ content_goal: string
 product_or_service: string
 product_images: [path]
 existing_copy: string | null
+material_source_mode: user_links | internal_search
+material_links: [url]
 references: [path_or_url]
 target_audience: string | null
 ```
@@ -29,6 +31,8 @@ target_audience: object
 image_inventory: [object]
 missing_materials: [string]
 conflicts: [object]
+material_source_mode: user_links | internal_search
+material_source_ready: boolean
 ready_for_strategy: boolean
 ```
 
@@ -39,7 +43,15 @@ ready_for_strategy: boolean
 3. 将型号、尺寸、颜色、包装、功能、价格、认证、效果和适用人群列为高风险事实字段。
 4. 建立 `immutable_claims`：未经客户确认，后续 Skill 不得修改。
 5. 为每张图片记录主体、角度、清晰度、可裁切区域、禁改项和建议用途。
-6. 缺少核心事实或产品图与文字冲突时，`ready_for_strategy: false`。
+6. 用户选择 `user_links` 时，检查 `material_links` 至少包含一个可读取的文章或产品素材链接；否则 `material_source_ready: false`。
+7. 用户选择 `internal_search` 时，允许 `material_links` 为空，并把产品名称、内容目标、目标用户和已有事实整理为搜索上下文。
+8. 缺少核心事实、产品图与文字冲突或素材来源路径未就绪时，`ready_for_strategy: false`。
+
+## Material Source Rule
+
+- `user_links`：只登记和读取用户提供的链接，不在本阶段扩展搜索。
+- `internal_search`：本阶段不虚构搜索结果，只准备交给 `$xhs-research-strategy` 的搜索上下文。
+- 输入未包含有效 `material_source_mode` 时返回未就绪，由主控请求用户二选一。
 
 ## Image Rule
 

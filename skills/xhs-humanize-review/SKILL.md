@@ -69,6 +69,14 @@ blocking_questions: [string]
 
 不得先改写再核实事实。自然化不得改变数字、型号、颜色、功能、效果、价格、认证和适用范围。
 
+## Fact Check Reuse
+
+审核时直接复用调研阶段的同一张 `fact_check`，不再新建第二份报告。逐项检查标题、正文、封面和轮播中的数字、归属、因果、效果、认证、比较和引用：
+
+- 写法超出 `allowed_wording` 时改回允许口径。
+- 新增高风险事实但未记录来源时，状态为 `BLOCKED`。
+- `fact_check` 中标记为 `NO` 的内容不得保留。
+
 ## Naturalization Procedure
 
 完成事实、风险、一致性与完整性检查后，严格按以下顺序执行：

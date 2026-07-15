@@ -2,7 +2,7 @@
 
 一套面向 Codex 的小红书内容工作流。它把客户提供的产品资料转成经过事实核对、选题确认、文案审核和结构校验的内容包，并生成可独立打开的 HTML 交付页。
 
-当前版本：`1.2.0`
+当前版本：`1.3.0`
 
 ## 适用场景
 
@@ -25,6 +25,24 @@
 7. `completed`：保存最终文件、审核结论和关键确认记录。
 
 流程状态保存在 `workflow-state.json` 中。材料补充、选题确认、审核阻断和任务恢复都有明确状态，不依赖一次对话完成全部步骤。
+
+## 素材获取方式
+
+开始制作前，工作流会让用户在两个方案中选择：
+
+1. **用户提供素材链接**：用户提交文章或产品页面链接，插件只读取这些链接，不自行扩展搜索。
+2. **插件内部搜索**：用户不需要准备链接，插件根据产品、内容目标和目标用户调用内部调研 Skill 搜索素材，并记录来源。
+
+对应输入字段为：
+
+```yaml
+material_source_mode: user_links | internal_search
+material_links: [url]
+```
+
+如果没有填写 `material_source_mode`，工作流会先展示两个方案并等待选择。内部搜索不可用或没有找到可靠来源时，不会编造素材，而是请用户重试或改为提供链接。
+
+无论选择哪一种方式，插件都会先列出来源、链接和核心信息，等用户确认素材范围后再生成选题。涉及数字、归属、因果、效果、认证或引用时，只维护一张高风险事实核查表，并在最终审核时继续复用。
 
 ## Skill 组成
 
@@ -98,6 +116,8 @@ content_goal: string
 product_or_service: string
 product_images: [path]
 existing_copy: string | null
+material_source_mode: user_links | internal_search
+material_links: [url]
 references: [path_or_url]
 target_audience: string | null
 account_voice: object | null
