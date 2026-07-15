@@ -2,7 +2,7 @@
 
 一套面向 Codex 的小红书内容工作流。它把客户提供的产品资料转成经过事实核对、选题确认、文案审核和结构校验的内容包，并生成可独立打开的 HTML 交付页。
 
-当前版本：`1.1.1`
+当前版本：`1.2.0`
 
 ## 适用场景
 
@@ -37,42 +37,34 @@
 | `xhs-humanize-review` | 执行事实、风险和自然表达审核 | 由主流程调用 |
 | `xhs-html-delivery` | 生成独立 HTML 交付页 | 由主流程调用 |
 
-“由主流程调用”表示正常使用时由 `xhs-content-employee` 按阶段显式调用。它们仍是独立安装的 Skill，用户可以手动指定；`allow_implicit_invocation: false` 只是不允许 Codex 在没有明确指令时自动选中。
+“由主流程调用”表示正常使用时由 `xhs-content-employee` 按阶段显式调用。它们随插件一起安装，用户也可以手动指定；`allow_implicit_invocation: false` 只是不允许 Codex 在没有明确指令时自动选中。
 
 ## 安装
 
-要求：
+推荐通过“小红书内容员工”Marketplace 安装：
 
-- 已安装 Git 或 GitHub CLI
-- 已安装 Python 3
-- 已安装并可使用 Codex
+```bash
+codex plugin marketplace add Shinchan-crayon/xiaohongshu-content-employee-marketplace --ref main
+codex plugin add xiaohongshu-content-employee@xiaohongshu-content-employee
+```
 
-克隆仓库：
+安装完成后重新打开 Codex，在“插件 > 个人”中找到“小红书内容员工”。
+
+### 旧版 Skill 安装方式
+
+Python 安装工具暂时保留用于旧版或离线环境。先克隆源码仓库：
 
 ```bash
 gh repo clone Shinchan-crayon/xiaohongshu-content-employee
 cd xiaohongshu-content-employee
-```
-
-安装 6 个 Skills：
-
-```bash
 python3 scripts/安装工具/install_codex_skills.py
 ```
 
-安装脚本默认使用 Codex 的 Skills 目录。需要指定其他位置时：
+需要指定其他位置时：
 
 ```bash
 python3 scripts/安装工具/install_codex_skills.py --target ./custom-skills
 ```
-
-目标位置已存在同名 Skill 时，安装会停止以保护现有文件。确认需要替换后再使用：
-
-```bash
-python3 scripts/安装工具/install_codex_skills.py --force
-```
-
-安装完成后重新启动 Codex。
 
 ## 使用
 
