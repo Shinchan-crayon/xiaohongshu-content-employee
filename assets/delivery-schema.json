@@ -15,15 +15,65 @@
     "review"
   ],
   "properties": {
-    "project": {"type": "object"},
-    "evidence": {"type": "array"},
-    "topics": {"type": "array"},
-    "titles": {"type": "array"},
-    "post": {"type": "object"},
-    "tags": {"type": "array"},
-    "cover": {"type": "object"},
-    "carousel": {"type": "array"},
-    "images": {"type": "array"},
+    "project": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "titles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": {"type": "string"},
+          "recommended": {"type": "boolean"}
+        }
+      }
+    },
+    "post": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "cover": {
+      "type": "object"
+    },
+    "carousel": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1}
+        }
+      }
+    },
     "review": {
       "type": "object",
       "required": ["status"],
@@ -31,6 +81,12 @@
         "status": {
           "type": "string",
           "enum": ["PASS", "PASS_WITH_NOTES"]
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
         }
       }
     }

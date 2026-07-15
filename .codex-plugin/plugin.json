@@ -1,0 +1,24 @@
+{
+  "name": "xiaohongshu-content-employee",
+  "version": "1.1.1",
+  "description": "将客户产品素材转化为可审核、可追溯的小红书内容与 HTML 交付页。",
+  "author": {
+    "name": "Shinchan-crayon",
+    "url": "https://github.com/Shinchan-crayon"
+  },
+  "repository": "https://github.com/Shinchan-crayon/xiaohongshu-content-employee",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "小红书内容员工",
+    "shortDescription": "从产品素材到审核和 HTML 交付的小红书内容工作流",
+    "longDescription": "整理产品事实、生成选题与文案、执行内容审核，并输出可独立打开的 HTML 交付页。",
+    "developerName": "Shinchan-crayon",
+    "category": "Productivity",
+    "capabilities": [
+      "Content generation",
+      "Review",
+      "HTML delivery"
+    ],
+    "defaultPrompt": "使用 $xhs-content-employee 将这些产品素材制作成可审核的小红书内容与 HTML 交付页。"
+  }
+}

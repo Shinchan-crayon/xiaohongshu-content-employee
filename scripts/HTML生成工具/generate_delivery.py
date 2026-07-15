@@ -51,6 +51,14 @@ def require_list(value: Any, name: str) -> List[Any]:
     return value
 
 
+def require_mapping_items(value: Any, name: str) -> List[Dict[str, Any]]:
+    items = require_list(value, name)
+    return [
+        require_mapping(item, f"{name}[{index}]")
+        for index, item in enumerate(items)
+    ]
+
+
 def validate_payload(payload: Any, source_dir: Path) -> None:
     root = require_mapping(payload, "delivery payload")
     missing = [key for key in REQUIRED_SECTIONS if key not in root]
@@ -59,6 +67,27 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
             "missing required sections: " + ", ".join(sorted(missing))
         )
 
+    require_mapping(root["project"], "project")
+    require_mapping_items(root["evidence"], "evidence")
+    require_mapping_items(root["topics"], "topics")
+    titles = require_mapping_items(root["titles"], "titles")
+    for index, title in enumerate(titles):
+        if not isinstance(title.get("text"), str):
+            raise DeliveryError(f"titles[{index}].text must be a string")
+
+    post = require_mapping(root["post"], "post")
+    body = require_list(post.get("body", []), "post.body")
+    for index, paragraph in enumerate(body):
+        if not isinstance(paragraph, str):
+            raise DeliveryError(f"post.body[{index}] must be a string")
+
+    tags = require_list(root["tags"], "tags")
+    for index, tag in enumerate(tags):
+        if not isinstance(tag, str):
+            raise DeliveryError(f"tags[{index}] must be a string")
+
+    require_mapping(root["cover"], "cover")
+
     review = require_mapping(root["review"], "review")
     review_status = review.get("status")
     if review_status not in APPROVED_REVIEW_STATUSES:
@@ -66,12 +95,13 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
             "review status must be PASS or PASS_WITH_NOTES"
         )
 
-    images = require_list(root["images"], "images")
+    require_mapping_items(review.get("checks", []), "review.checks")
+
+    images = require_mapping_items(root["images"], "images")
     image_ids = set()
     for index, image in enumerate(images):
-        item = require_mapping(image, f"images[{index}]")
-        image_id = str(item.get("id", "")).strip()
-        image_path = str(item.get("path", "")).strip()
+        image_id = str(image.get("id", "")).strip()
+        image_path = str(image.get("path", "")).strip()
         if not image_id or not image_path:
             raise DeliveryError(f"images[{index}] requires id and path")
         if image_id in image_ids:
@@ -81,9 +111,8 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
         if not candidate.is_file():
             raise DeliveryError(f"missing image: {image_path}")
 
-    for index, page in enumerate(require_list(root["carousel"], "carousel")):
-        item = require_mapping(page, f"carousel[{index}]")
-        image_id = str(item.get("image_id", "")).strip()
+    for index, page in enumerate(require_mapping_items(root["carousel"], "carousel")):
+        image_id = str(page.get("image_id", "")).strip()
         if image_id and image_id not in image_ids:
             raise DeliveryError(
                 f"carousel[{index}] references unknown image id: {image_id}"

@@ -2,7 +2,7 @@
 
 一套面向 Codex 的小红书内容工作流。它把客户提供的产品资料转成经过事实核对、选题确认、文案审核和结构校验的内容包，并生成可独立打开的 HTML 交付页。
 
-当前版本：`1.1.0`
+当前版本：`1.1.1`
 
 ## 适用场景
 
@@ -136,6 +136,7 @@ account_voice: object | null
 
 ```text
 xiaohongshu-content-employee/
+├── .codex-plugin/
 ├── README.md
 ├── plugin-manifest/
 ├── skills/
