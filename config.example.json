@@ -1,0 +1,35 @@
+{
+  "base_url": "https://www.thinkai.tv/v1",
+  "model": "gpt-image-2",
+  "api_key": "",
+  "default_provider": "thinkai-image-2",
+  "providers": {
+    "thinkai-nano": {
+      "api_key": "",
+      "model_alias": "recommended"
+    },
+    "seedream": {
+      "api_key": "",
+      "model_alias": "recommended"
+    },
+    "openai-gpt-image": {
+      "api_key": "",
+      "model_alias": "recommended"
+    },
+    "google-nano-banana": {
+      "api_key": "",
+      "model_alias": "recommended"
+    },
+    "custom-example": {
+      "display_name": "其他渠道示例",
+      "api_key": "",
+      "profile": "openai-image-compatible",
+      "endpoint": "https://api.example.com/v1/images/generations",
+      "model": "image-model",
+      "auth_type": "bearer",
+      "api_key_header": "",
+      "response_path": "data.0.b64_json",
+      "response_type": "base64"
+    }
+  }
+}

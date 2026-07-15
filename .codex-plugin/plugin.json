@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.4.0",
-  "description": "将客户产品素材转化为可审核、可追溯的小红书内容与 HTML 交付页。",
+  "version": "1.5.0",
+  "description": "将产品素材转化为可审核的小红书文案、可选 AI 视觉和 HTML 交付页。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"
@@ -10,19 +10,20 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "小红书内容员工",
-    "shortDescription": "从产品素材到审核和 HTML 交付的小红书内容工作流",
-    "longDescription": "整理产品事实、生成选题与文案、执行内容审核，并输出可独立打开的 HTML 交付页。",
+    "shortDescription": "从产品素材到文案、可选生图和 HTML 交付",
+    "longDescription": "整理产品事实、生成选题与文案、执行自然化审核，并可在用户确认图片方案和 Prompt 后生成 1080x1440 小红书视觉成品。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [
       "Content generation",
       "Review",
+      "Image generation",
       "HTML delivery"
     ],
     "defaultPrompt": [
       "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容。",
-      "整理我提供的产品资料，先给出需要确认的事实和选题方向。",
-      "审核这套小红书文案的事实、宣传风险和表达自然度。"
+      "整理产品资料并制作小红书文案，审核通过后让我选择是否使用 AI 补图。",
+      "审核这套小红书文案，并为确认后的内容生成 1080x1440 轮播图。"
     ],
     "brandColor": "#FF4D6D",
     "composerIcon": "./assets/plugin-icon.png",

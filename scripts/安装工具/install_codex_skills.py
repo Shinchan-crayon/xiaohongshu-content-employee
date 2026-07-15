@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the six Xiaohongshu content Skills into a Codex skills directory."""
+"""Install the eight Xiaohongshu content Skills into a Codex skills directory."""
 
 from __future__ import annotations
 
@@ -19,11 +19,13 @@ EXPECTED_SKILLS = (
     "xhs-research-strategy",
     "xhs-copy-storyboard",
     "xhs-humanize-review",
+    "xhs-visual-planner",
+    "xhs-approved-image-generator",
     "xhs-html-delivery",
 )
 
 RESOURCE_PATTERN = re.compile(
-    r"\.\./\.\./(?P<kind>references|assets|templates)/(?P<tail>[^\s`]+)"
+    r"\.\./\.\./(?P<kind>references|assets|templates|scripts)/(?P<tail>[^\s`]+)"
 )
 
 SKILL_ROOT_FILES = ("SKILL.md",)
@@ -35,6 +37,25 @@ HTML_DELIVERY_TEMPLATE_FILES = (
 )
 HTML_DELIVERY_SCRIPT = (
     Path("scripts") / "HTML生成工具" / "generate_delivery.py"
+)
+IMAGE_GENERATION_RUNTIME_FILES = (
+    Path("assets") / "image_providers.json",
+    Path("config.example.json"),
+    Path("requirements.txt"),
+    Path("scripts") / "生图工具" / "approval_hash.py",
+    Path("scripts") / "生图工具" / "configure_provider.py",
+    Path("scripts") / "生图工具" / "generate_image.py",
+    Path("scripts") / "生图工具" / "provider_preflight.py",
+    Path("scripts") / "生图工具" / "provider_registry.py",
+    Path("scripts") / "生图工具" / "providers" / "__init__.py",
+    Path("scripts") / "生图工具" / "providers" / "base.py",
+    Path("scripts") / "生图工具" / "providers" / "custom.py",
+    Path("scripts") / "生图工具" / "providers" / "google_image.py",
+    Path("scripts") / "生图工具" / "providers" / "openai_image.py",
+    Path("scripts") / "生图工具" / "providers" / "thinkai.py",
+    Path("scripts") / "生图工具" / "providers" / "thinkai_nano.py",
+    Path("scripts") / "生图工具" / "providers" / "volcengine.py",
+    Path("scripts") / "图片合成工具" / "render_carousel.py",
 )
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -84,6 +105,8 @@ def skill_resource_paths(source_skill_dir: Path, skill_text: str) -> Set[Path]:
     if source_skill_dir.name == "xhs-html-delivery":
         resources.update(HTML_DELIVERY_TEMPLATE_FILES)
         resources.add(HTML_DELIVERY_SCRIPT)
+    if source_skill_dir.name == "xhs-approved-image-generator":
+        resources.update(IMAGE_GENERATION_RUNTIME_FILES)
 
     return resources
 
@@ -99,6 +122,9 @@ def copy_skill_runtime(source_skill_dir: Path, staged_skill_dir: Path) -> None:
         skill_text.replace("../../references/", "references/")
         .replace("../../assets/", "assets/")
         .replace("../../templates/", "templates/")
+        .replace("../../scripts/", "scripts/")
+        .replace("../../config.example.json", "config.example.json")
+        .replace("../../requirements.txt", "requirements.txt")
     )
     (staged_skill_dir / "SKILL.md").write_text(rewritten, encoding="utf-8")
 
@@ -113,11 +139,19 @@ def copy_skill_runtime(source_skill_dir: Path, staged_skill_dir: Path) -> None:
 
 def verify_staged_skill(skill_dir: Path) -> None:
     text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
-    for prefix in ("../../references/", "../../assets/", "../../templates/"):
+    for prefix in (
+        "../../references/",
+        "../../assets/",
+        "../../templates/",
+        "../../scripts/",
+    ):
         if prefix in text:
             raise InstallError(f"unrewritten resource path remains in {skill_dir.name}")
 
-    for match in re.finditer(r"`((?:references|assets|templates)/[^`]+)`", text):
+    for match in re.finditer(
+        r"`((?:references|assets|templates|scripts)/[^`]+)`",
+        text,
+    ):
         relative = Path(match.group(1))
         if not (skill_dir / relative).is_file():
             raise InstallError(
@@ -131,6 +165,13 @@ def verify_staged_skill(skill_dir: Path) -> None:
             if not (skill_dir / template).is_file():
                 raise InstallError(
                     f"xhs-html-delivery is missing template file: {template.as_posix()}"
+                )
+    if skill_dir.name == "xhs-approved-image-generator":
+        for runtime_file in IMAGE_GENERATION_RUNTIME_FILES:
+            if not (skill_dir / runtime_file).is_file():
+                raise InstallError(
+                    "xhs-approved-image-generator is missing runtime file: "
+                    f"{runtime_file.as_posix()}"
                 )
 
 

@@ -36,6 +36,7 @@
         "angle_confirmation",
         "drafting",
         "review",
+        "visuals",
         "delivery",
         "completed"
       ]
@@ -72,6 +73,7 @@
               "angle_confirmation",
               "drafting",
               "review",
+              "visuals",
               "delivery",
               "completed"
             ]
@@ -114,6 +116,7 @@
               "angle_confirmation",
               "drafting",
               "review",
+              "visuals",
               "delivery",
               "completed"
             ]
@@ -156,6 +159,7 @@
               "angle_confirmation",
               "drafting",
               "review",
+              "visuals",
               "delivery",
               "completed"
             ]
@@ -200,6 +204,7 @@
             "angle_confirmation",
             "drafting",
             "review",
+            "visuals",
             "delivery",
             "completed"
           ]
@@ -212,6 +217,7 @@
             "angle_confirmation",
             "drafting",
             "review",
+            "visuals",
             "delivery",
             "completed"
           ]
@@ -250,6 +256,7 @@
               "angle_confirmation",
               "drafting",
               "review",
+              "visuals",
               "delivery",
               "completed"
             ]
@@ -262,6 +269,7 @@
               "angle_confirmation",
               "drafting",
               "review",
+              "visuals",
               "delivery",
               "completed"
             ]
@@ -331,6 +339,9 @@
         }
       },
       "additionalProperties": true
+    },
+    "visuals": {
+      "$ref": "#/$defs/visuals"
     }
   },
   "oneOf": [
@@ -427,6 +438,24 @@
       ],
       "properties": {
         "stage": {
+          "const": "visuals"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "WAITING_CONFIRMATION",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "required": [
+        "stage",
+        "status"
+      ],
+      "properties": {
+        "stage": {
           "const": "delivery"
         },
         "status": {
@@ -454,5 +483,96 @@
       }
     }
   ],
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "visuals": {
+      "type": "object",
+      "required": [
+        "mode",
+        "substage",
+        "generation_status"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "existing_only",
+            "ai_assist"
+          ]
+        },
+        "substage": {
+          "type": "string",
+          "enum": [
+            "mode_selection",
+            "provider_selection",
+            "plan_review",
+            "prompt_review",
+            "ready",
+            "generating",
+            "complete"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quality": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "visual_plan": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "prompt_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approval_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "generation_status": {
+          "type": "string",
+          "enum": [
+            "not_requested",
+            "ready",
+            "generating",
+            "complete",
+            "blocked",
+            "uncertain"
+          ]
+        },
+        "generated_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
 }

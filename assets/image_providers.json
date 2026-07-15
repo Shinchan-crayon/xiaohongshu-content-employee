@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "thinkai-image-2",
+      "name": "ThinkAI Image 2",
+      "adapter": "thinkai",
+      "base_url": "https://www.thinkai.tv/v1",
+      "recommended_model": "recommended",
+      "models": {
+        "recommended": "gpt-image-2"
+      },
+      "default_size": "1536x2048",
+      "status": "supported"
+    },
+    {
+      "id": "thinkai-nano",
+      "name": "ThinkAI Nano",
+      "adapter": "thinkai_nano",
+      "base_url": "https://www.thinkai.tv/v1",
+      "recommended_model": "recommended",
+      "models": {
+        "recommended": "nano-banana-2"
+      },
+      "default_size": "3:4@2K",
+      "status": "supported"
+    },
+    {
+      "id": "seedream",
+      "name": "火山引擎 Seedream",
+      "adapter": "volcengine",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "recommended_model": "recommended",
+      "models": {
+        "recommended": "doubao-seedream-5-0-lite-260128"
+      },
+      "default_size": "1728x2304",
+      "status": "supported"
+    },
+    {
+      "id": "openai-gpt-image",
+      "name": "OpenAI GPT Image",
+      "adapter": "openai_image",
+      "base_url": "https://api.openai.com/v1",
+      "recommended_model": "recommended",
+      "models": {
+        "recommended": "gpt-image-2"
+      },
+      "default_size": "1024x1536",
+      "status": "supported"
+    },
+    {
+      "id": "google-nano-banana",
+      "name": "Google Nano Banana",
+      "adapter": "google_image",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta",
+      "recommended_model": "recommended",
+      "models": {
+        "recommended": "gemini-3.1-flash-image"
+      },
+      "default_size": "3:4@2K",
+      "status": "supported"
+    },
+    {
+      "id": "custom",
+      "name": "其他渠道",
+      "status": "guided",
+      "restricted": true
+    }
+  ]
+}

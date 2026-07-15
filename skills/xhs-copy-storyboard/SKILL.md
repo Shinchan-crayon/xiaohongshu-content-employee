@@ -38,6 +38,9 @@ cover:
 carousel: [object]
 images: [object]
 claim_map: [object]
+visual_brief:
+  page_tasks: [object]
+  real_image_inventory: [object]
 ```
 
 ## Method
@@ -52,6 +55,7 @@ claim_map: [object]
 8. 封面只承诺正文能兑现的信息。
 9. 轮播每页只承担一个信息任务，并记录对应图片 ID。
 10. 图片方案优先使用客户真实产品图；信息图只表达结构，不改变产品事实。
+11. 额外输出 `visual_brief`，只描述每页任务和可用真实图片，不在文案阶段调用生图接口。
 
 ## Required References
 

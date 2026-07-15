@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaohongshu Carousel Render Request",
+  "type": "object",
+  "required": [
+    "layout",
+    "headline",
+    "body",
+    "output_path"
+  ],
+  "properties": {
+    "layout": {
+      "type": "string",
+      "enum": [
+        "product_focus",
+        "scene_story",
+        "information_card"
+      ]
+    },
+    "headline": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "background_path": {
+      "type": "string"
+    },
+    "product_path": {
+      "type": "string"
+    },
+    "background_color": {
+      "type": "string"
+    },
+    "text_color": {
+      "type": "string"
+    },
+    "output_path": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "additionalProperties": false
+}

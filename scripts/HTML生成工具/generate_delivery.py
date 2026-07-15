@@ -25,6 +25,14 @@ REQUIRED_SECTIONS = (
     "review",
 )
 APPROVED_REVIEW_STATUSES = {"PASS", "PASS_WITH_NOTES"}
+PROVIDER_NAMES = {
+    "thinkai-image-2": "ThinkAI Image 2",
+    "thinkai-nano": "ThinkAI Nano",
+    "seedream": "火山引擎 Seedream",
+    "openai-gpt-image": "OpenAI GPT Image",
+    "google-nano-banana": "Google Nano Banana",
+    "custom": "其他渠道",
+}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parents[1]
@@ -110,6 +118,17 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
         candidate = (source_dir / image_path).resolve()
         if not candidate.is_file():
             raise DeliveryError(f"missing image: {image_path}")
+        if image.get("source_type") == "ai_generated":
+            provider = str(image.get("provider") or "").strip()
+            model = str(image.get("model") or "").strip()
+            if not provider:
+                raise DeliveryError(f"images[{index}] ai_generated requires provider")
+            if not model:
+                raise DeliveryError(f"images[{index}] ai_generated requires model")
+            if image.get("width") != 1080 or image.get("height") != 1440:
+                raise DeliveryError(
+                    f"images[{index}] ai_generated must be 1080x1440"
+                )
 
     for index, page in enumerate(require_mapping_items(root["carousel"], "carousel")):
         image_id = str(page.get("image_id", "")).strip()
@@ -206,6 +225,15 @@ def render_images(
         absolute = (source_dir / str(image["path"])).resolve()
         relative = os.path.relpath(str(absolute), str(output_dir))
         src = Path(relative).as_posix()
+        provider_detail = ""
+        if image.get("source_type") == "ai_generated":
+            provider_id = str(image.get("provider") or "")
+            provider_name = PROVIDER_NAMES.get(provider_id, provider_id)
+            provider_detail = (
+                f'<p class="muted">渠道：{escape(provider_name)} · '
+                f'模型：{escape(image.get("model"))} · '
+                f'{escape(image.get("width"))}×{escape(image.get("height"))}</p>'
+            )
         items.append(
             '<article class="item">'
             f"<h3>{escape(image.get('id'))}</h3>"
@@ -213,6 +241,7 @@ def render_images(
             f'alt="{escape(image.get("usage") or image.get("id"))}">'
             f"<p>{escape(image.get('usage'))}</p>"
             f'<p class="muted">来源：{escape(image.get("source"))}</p>'
+            f"{provider_detail}"
             '<div class="actions">'
             f'<a class="image-link" href="{escape(src)}" target="_blank" rel="noopener">预览</a>'
             f'<a class="image-link" href="{escape(src)}" download>下载</a>'

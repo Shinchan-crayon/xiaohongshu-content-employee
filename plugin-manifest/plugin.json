@@ -1,13 +1,15 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.4.0",
-  "description": "将客户产品素材转化为可审核、可追溯的小红书内容与 HTML 交付页。",
+  "version": "1.5.0",
+  "description": "将产品素材转化为可审核的小红书文案、可选 AI 视觉和 HTML 交付页。",
   "skills": [
     "skills/xhs-content-employee",
     "skills/product-material-intake",
     "skills/xhs-research-strategy",
     "skills/xhs-copy-storyboard",
     "skills/xhs-humanize-review",
+    "skills/xhs-visual-planner",
+    "skills/xhs-approved-image-generator",
     "skills/xhs-html-delivery"
   ],
   "entry_skill": "skills/xhs-content-employee"

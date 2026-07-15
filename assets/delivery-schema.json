@@ -70,7 +70,17 @@
         "required": ["id", "path"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
-          "path": {"type": "string", "minLength": 1}
+          "path": {"type": "string", "minLength": 1},
+          "usage": {"type": "string"},
+          "source": {"type": "string"},
+          "source_type": {
+            "type": "string",
+            "enum": ["provided", "ai_generated", "derived"]
+          },
+          "provider": {"type": "string"},
+          "model": {"type": "string"},
+          "width": {"type": "integer"},
+          "height": {"type": "integer"}
         }
       }
     },
