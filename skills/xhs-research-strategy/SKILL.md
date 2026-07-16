@@ -13,6 +13,7 @@ material_source_mode: user_links | internal_search
 material_links: [url]
 customer_references: [path_or_url]
 query_date: YYYY-MM-DD
+learning_context: object | null
 ```
 
 ## Output Contract
@@ -42,6 +43,12 @@ topic_candidates:
     fit_score: integer
     risk: string
 research_limitations: [string]
+learning_candidates:
+  - kind: fact | operating_pattern | content_pattern
+    statement: string
+    source: string
+    observed_at: YYYY-MM-DD
+    status: pending
 ```
 
 ## Material Source Modes
@@ -66,6 +73,7 @@ research_limitations: [string]
 9. 用户确认后把 `source_confirmed` 设为 `true`。只核查高风险事实：数字、日期、价格、功能、效果、认证、归属、因果、比较和引用，填写同一张 `fact_check`。
 10. 有可靠来源且口径一致的可以写；需要限定的写入 `allowed_wording`；无法核实或来源冲突的标记为 `NO`。
 11. 存在核心 `NO` 项时写入 `fact_check_status: BLOCKED`；处理完成后写入 `PASS`，再生成 2-5 个选题。
+12. 仅将可跨任务复用、能够说明来源和 `observed_at` 的结论放入 `learning_candidates`，状态固定为 `pending`。
 
 ## Source Confirmation Gate
 
@@ -80,6 +88,13 @@ research_limitations: [string]
 
 `fact_check` 只记录高风险事实，保留原始口径、来源、能否使用和正文允许写法。普通描述不重复建表。
 
+## Learning Candidate Gate
+
+- 外部事实、运营规律和内容模式必须保留来源与 `observed_at`。
+- 所有新候选默认是 `pending`，不得直接写入已批准知识。
+- 搜索摘要、竞品原文、单条无法复核的观点和仅适用于本次产品的规格不进入长期知识候选。
+- 候选项可以用于本次任务的事实核查或策略判断，但后续任务只有在用户批准后才能复用。
+
 ## Prohibited
 
 - 不复制竞品独有体验和用户评价。
@@ -93,4 +108,5 @@ research_limitations: [string]
 
 - `../../references/审核规则/事实来源规则.md`
 - `../../references/小红书内容规范/标题规则.md`
+- `../../references/小红书内容规范/个性化学习规则.md`
 - `../../references/行业模板/通用消费品.md`

@@ -40,6 +40,7 @@ references: [path_or_url]
 target_audience: string | null
 account_voice: object | null
 detector_feedback: object | null
+learning_enabled: boolean | null
 ```
 
 `material_source_mode` 是素材获取方式。若为空，主控必须先展示以下两个方案并等待用户选择，不得自行推断：
@@ -68,7 +69,29 @@ delivery_json: path | null
 delivery_html: path | null
 material_source_selection: user_links | internal_search | null
 open_questions: [string]
+learning_summary: object | null
 ```
+
+## Guided Adaptive Learning
+
+在进入 `intake` 前，先调用 `../../scripts/知识迭代工具/manage_knowledge.py init`。这是用户可见能力，不得静默运行。
+
+若学习已开启，必须原样展示这段启动提示：
+
+> 个性化学习已开启：你明确修改和偏好会自动保存；外部事实和运营规律需要确认后才会长期使用；你可以随时查看学习记录、关闭个性化学习或删除学习记录。
+
+随后调用 `context`，用大白话告诉用户本次采用了哪些历史偏好或已批准知识；没有记录时明确说明“本次暂未使用历史偏好”。用户设置 `learning_enabled: false` 或说“关闭个性化学习”时调用 `disable`，本次不读取也不写入个性化数据。
+
+用户可以直接说：
+
+- “查看学习记录”：展示偏好、已批准知识和待确认数量。
+- “关闭个性化学习”：调用 `disable`。
+- “开启个性化学习”：调用 `enable`。
+- “删除学习记录”：先展示记录 ID，再对用户指定项调用 `forget`。
+
+用户明确表达长期偏好，或者修改标题、正文、视觉和流程并说明原因后，调用 `record-preference` 自动保存。不得从沉默、模糊评价或模型推测中学习。
+
+调研发现的外部事实、运营规律和内容模式只能调用 `propose` 保存为 `pending`。任务结束前展示候选项；只有用户明确批准后才能调用 `review --decision approve`。候选知识确认不阻塞本次内容交付。
 
 ## State File Contract
 
@@ -85,6 +108,7 @@ open_questions: [string]
 - `checkpoint`: 当前可恢复检查点，至少包含 `sequence`、`last_valid_stage`、`resume_from` 和 `artifact_refs`，用于保留最近一个有效阶段和已有产物引用。
 - `transition_log`: 阶段迁移历史数组，至少记录 `from`、`to`、`status`、`reason`、`sequence` 等字段，用于追踪前进、阻断、回退与恢复。
 - `next_action`: 下一步由谁完成、做什么、依赖什么。
+- `learning`: 个性化学习状态，至少包含 `enabled`、`learning_notice_shown`、`storage_reference`、`applied_preference_ids`、`applied_knowledge_ids` 和 `pending_candidate_ids`。
 
 素材获取方式必须写入名为 `material_source_selection` 的确认记录或 artifact，并在恢复执行时继续沿用。用户明确要求切换方案时，才允许更新该记录并重新进入 `intake`。
 
@@ -102,7 +126,8 @@ open_questions: [string]
 ## Stage Orchestration
 
 1. `intake`
-   - 启动时写入 `stage: intake`、`status: IN_PROGRESS`。
+   - 完成个性化学习启动提示和 `context` 读取后，写入 `stage: intake`、`status: IN_PROGRESS`。
+   - 将 `learning_notice_shown: true`、`storage_reference: xhs-user-data://knowledge` 和本次实际采用的记录 ID 写入 `learning`；不得写入本机绝对路径。
    - 若 `material_source_mode` 为空，向用户展示“方案 1：用户提供素材链接”和“方案 2：插件内部搜索”，写入待确认的 `material_source_selection`，并切换为 `WAITING_CONFIRMATION`。
    - 用户选择后，把 `user_links` 或 `internal_search` 写入确认记录和恢复检查点；未确认前不得进入 `research`。
    - 调用 `$product-material-intake`，锁定事实、禁止改写项和缺失材料。
@@ -123,6 +148,7 @@ open_questions: [string]
    - 来源确认后只对数字、归属、因果、比较、功能、效果、认证和引用等高风险事实建立一张 `fact_check`。
    - `fact_check` 为 `BLOCKED` 时保持 `research / BLOCKED`，删除、修正或补充来源后再继续；通过后才生成选题。
    - 若新发现事实冲突，立即回退到 `intake`，保留冲突记录，不允许在当前阶段绕过。
+   - 将可能跨任务复用的外部事实、运营规律和内容模式登记为 `pending` 候选，并把 ID 写入 `pending_candidate_ids`；不得直接写入已批准知识。
    - 完成后转入 `angle_confirmation`。
 
 3. `angle_confirmation`
@@ -176,6 +202,7 @@ open_questions: [string]
    - 写入 `stage: completed`、`status: COMPLETED`。
    - `artifacts` 中必须保留最终 `delivery_json`、`delivery_html`、审核结论和关键确认记录。
    - `next_action` 仅描述可选后续，例如再次迭代或归档，不再驱动主流程前进。
+   - 汇总用户本次明确表达或修改产生的偏好并自动保存；展示全部 `pending_candidate_ids`，引导用户批准、拒绝或暂不处理。
 
 ## Resume, Recovery And Rollback
 
@@ -203,6 +230,7 @@ open_questions: [string]
 - AI 补图使用的渠道、模型、尺寸和质量。
 - 图片规划。
 - 最终 Prompt 与执行条件；确认前状态必须是 `WAITING_CONFIRMATION`。
+- 外部事实与运营规律是否进入长期知识；该确认不阻塞本次交付完成。
 
 ## Delivery Rules
 
@@ -214,3 +242,4 @@ open_questions: [string]
 
 - `../../references/审核规则/事实来源规则.md`
 - `../../references/审核规则/最终审核清单.md`
+- `../../references/小红书内容规范/个性化学习规则.md`

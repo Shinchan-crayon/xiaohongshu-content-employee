@@ -16,6 +16,7 @@ material_source_mode: user_links | internal_search
 material_links: [url]
 references: [path_or_url]
 target_audience: string | null
+learning_context: object | null
 ```
 
 ## Output Contract
@@ -34,6 +35,8 @@ conflicts: [object]
 material_source_mode: user_links | internal_search
 material_source_ready: boolean
 ready_for_strategy: boolean
+applied_learning_ids: [string]
+explicit_preference_signals: [object]
 ```
 
 ## Method
@@ -46,6 +49,8 @@ ready_for_strategy: boolean
 6. 用户选择 `user_links` 时，检查 `material_links` 至少包含一个可读取的文章或产品素材链接；否则 `material_source_ready: false`。
 7. 用户选择 `internal_search` 时，允许 `material_links` 为空，并把产品名称、内容目标、目标用户和已有事实整理为搜索上下文。
 8. 缺少核心事实、产品图与文字冲突或素材来源路径未就绪时，`ready_for_strategy: false`。
+9. 只使用 `learning_context` 中的用户偏好和已批准知识，并把实际采用的记录写入 `applied_learning_ids`。
+10. 用户在素材整理时明确表达长期偏好，或修改内容并说明原因时，写入 `explicit_preference_signals` 交给主控保存；不要根据沉默或推测生成偏好。
 
 ## Material Source Rule
 
@@ -62,3 +67,4 @@ ready_for_strategy: boolean
 - `../../references/审核规则/事实来源规则.md`
 - `../../references/审核规则/虚构内容禁止规则.md`
 - `../../references/小红书内容规范/产品种草规范.md`
+- `../../references/小红书内容规范/个性化学习规则.md`

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaohongshu Content Employee Adaptive Knowledge",
+  "type": "object",
+  "required": [
+    "enabled",
+    "storage_reference",
+    "preferences",
+    "knowledge"
+  ],
+  "properties": {
+    "enabled": {
+      "type": "boolean"
+    },
+    "storage_reference": {
+      "const": "xhs-user-data://knowledge"
+    },
+    "preferences": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/preference"
+      }
+    },
+    "knowledge": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/knowledge"
+      }
+    }
+  },
+  "$defs": {
+    "preference": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "value",
+        "observations",
+        "evidence"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^pref-[a-f0-9]{16}$"
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observations": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "knowledge": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "statement",
+        "source",
+        "observed_at",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^knowledge-[a-f0-9]{16}$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "fact",
+            "operating_pattern",
+            "content_pattern"
+          ]
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

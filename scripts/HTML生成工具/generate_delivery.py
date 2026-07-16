@@ -185,6 +185,246 @@ def render_titles(titles: Iterable[Dict[str, Any]]) -> str:
     return "".join(items)
 
 
+def relative_image_src(
+    image: Dict[str, Any], source_dir: Path, output_dir: Path
+) -> str:
+    absolute = (source_dir / str(image["path"])).resolve()
+    relative = os.path.relpath(str(absolute), str(output_dir))
+    return Path(relative).as_posix()
+
+
+def render_title_options(titles: Iterable[Dict[str, Any]]) -> str:
+    title_list = list(titles)
+    active_index = next(
+        (index for index, title in enumerate(title_list) if title.get("recommended")),
+        0,
+    )
+    items = []
+    for index, title in enumerate(title_list):
+        is_active = index == active_index
+        recommended = bool(title.get("recommended"))
+        classes = "title-option is-active" if is_active else "title-option"
+        badge = '<span class="recommend-label">推荐</span>' if recommended else ""
+        items.append(
+            '<div class="title-choice">'
+            f'<button class="{classes}" type="button" '
+            f'data-title-text="{escape(title.get("text"))}" '
+            f'aria-pressed="{"true" if is_active else "false"}">'
+            f'{badge}<span class="title-input" data-title-editor '
+            f'contenteditable="true" role="textbox" aria-multiline="false" '
+            f'aria-label="候选标题 {index + 1}">{escape(title.get("text"))}</span>'
+            "</button>"
+            f'<button class="icon-btn title-copy" type="button" '
+            f'data-copy-text="{escape(title.get("text"))}" title="复制标题" '
+            f'aria-label="复制标题 {index + 1}">⧉</button>'
+            "</div>"
+        )
+    return "".join(items)
+
+
+def render_image_editor(
+    images: Iterable[Dict[str, Any]],
+    carousel_pages: Iterable[Dict[str, Any]],
+    source_dir: Path,
+    output_dir: Path,
+) -> str:
+    pages = list(carousel_pages)
+    items = []
+    for index, image in enumerate(images):
+        src = relative_image_src(image, source_dir, output_dir)
+        image_id = str(image.get("id", ""))
+        slide_index = next(
+            (
+                page_index
+                for page_index, page in enumerate(pages)
+                if str(page.get("image_id", "")) == image_id
+            ),
+            0,
+        )
+        classes = "image-thumb is-active" if index == 0 else "image-thumb"
+        items.append(
+            f'<button class="{classes}" type="button" '
+            f'data-editor-slide-index="{slide_index}" '
+            f'data-editor-image="{escape(image_id)}" '
+            f'title="查看{escape(image.get("usage") or image_id)}">'
+            f'<img src="{escape(src)}" alt="{escape(image.get("usage") or image_id)}">'
+            f'<span>{index + 1}</span>'
+            "</button>"
+        )
+    return "".join(items)
+
+
+def render_post_editor(post: Dict[str, Any], tags: Iterable[str]) -> str:
+    body = require_list(post.get("body", []), "post.body")
+    parts = [f'<p class="post-hook">{escape(post.get("hook"))}</p>']
+    parts.extend(f"<p>{escape(paragraph)}</p>" for paragraph in body)
+    if post.get("cta"):
+        parts.append(f'<p class="post-cta">{escape(post.get("cta"))}</p>')
+    tag_markup = " ".join(
+        f'<span class="editor-tag">#{escape(tag)}</span>' for tag in tags
+    )
+    return (
+        '<div class="post-copy copy-source" id="post-copy">'
+        '<div class="post-content" data-post-editor contenteditable="true" '
+        'role="textbox" aria-multiline="true" aria-label="小红书正文">'
+        f"{''.join(parts)}"
+        "</div>"
+        f'<div class="editor-tags" id="tags-copy">{tag_markup}</div>'
+        "</div>"
+    )
+
+
+def render_preview_slides(
+    carousel_pages: Iterable[Dict[str, Any]],
+    images_by_id: Dict[str, Dict[str, Any]],
+    source_dir: Path,
+    output_dir: Path,
+) -> tuple[str, str]:
+    slides = []
+    dots = []
+    for index, page in enumerate(carousel_pages):
+        image = images_by_id.get(str(page.get("image_id", "")))
+        if not image:
+            continue
+        src = relative_image_src(image, source_dir, output_dir)
+        slide_number = len(slides) + 1
+        classes = "preview-slide is-active" if not slides else "preview-slide"
+        slides.append(
+            f'<figure class="{classes}" data-slide-index="{slide_number}">'
+            f'<img src="{escape(src)}" alt="{escape(page.get("headline") or image.get("usage"))}">'
+            f'<figcaption>{escape(page.get("headline"))}</figcaption>'
+            "</figure>"
+        )
+        dot_classes = "preview-dot is-active" if slide_number == 1 else "preview-dot"
+        dots.append(
+            f'<button class="{dot_classes}" type="button" '
+            f'data-carousel-dot="{slide_number}" '
+            f'aria-label="查看第 {slide_number} 张图片"></button>'
+        )
+    return "".join(slides), "".join(dots)
+
+
+def render_phone_preview(
+    project: Dict[str, Any],
+    titles: Iterable[Dict[str, Any]],
+    post: Dict[str, Any],
+    cover: Dict[str, Any],
+    carousel_pages: Iterable[Dict[str, Any]],
+    images: Iterable[Dict[str, Any]],
+    source_dir: Path,
+    output_dir: Path,
+) -> str:
+    title_list = list(titles)
+    active_title = next(
+        (
+            str(title.get("text", ""))
+            for title in title_list
+            if title.get("recommended")
+        ),
+        str(title_list[0].get("text", "")) if title_list else "",
+    )
+    image_list = list(images)
+    images_by_id = {str(image.get("id")): image for image in image_list}
+    slides, dots = render_preview_slides(
+        carousel_pages, images_by_id, source_dir, output_dir
+    )
+    if not slides and image_list:
+        fallback = image_list[0]
+        fallback_src = relative_image_src(fallback, source_dir, output_dir)
+        slides = (
+            '<figure class="preview-slide is-active" data-slide-index="1">'
+            f'<img src="{escape(fallback_src)}" alt="{escape(fallback.get("usage"))}">'
+            "</figure>"
+        )
+        dots = (
+            '<button class="preview-dot is-active" type="button" '
+            'data-carousel-dot="1" aria-label="查看第 1 张图片"></button>'
+        )
+
+    cover_image = images_by_id.get(str(cover.get("image_id", "")))
+    if not cover_image:
+        first_page = next(iter(carousel_pages), {})
+        cover_image = images_by_id.get(str(first_page.get("image_id", "")))
+    if not cover_image and image_list:
+        cover_image = image_list[0]
+    cover_src = (
+        relative_image_src(cover_image, source_dir, output_dir)
+        if cover_image
+        else ""
+    )
+    preview_body = " ".join(
+        [
+            str(post.get("hook") or ""),
+            *[str(item) for item in require_list(post.get("body", []), "post.body")],
+        ]
+    ).strip()
+    account_name = str(project.get("account_name") or "内容创作者")
+    cover_image_markup = (
+        f'<img src="{escape(cover_src)}" alt="{escape(cover.get("headline"))}">'
+        if cover_src
+        else '<div class="cover-placeholder">暂无封面</div>'
+    )
+
+    return f"""
+      <aside class="preview-pane" aria-label="发布效果预览">
+        <div class="preview-tabs" role="tablist" aria-label="预览模式">
+          <button class="preview-tab is-active" type="button" role="tab"
+            aria-selected="true" data-preview-tab="note">笔记预览</button>
+          <button class="preview-tab" type="button" role="tab"
+            aria-selected="false" data-preview-tab="cover">封面预览</button>
+        </div>
+        <div class="phone-stage" data-preview-scale-stage>
+          <div class="phone-frame" data-preview-scale-target>
+            <div class="phone-status"><strong>9:41</strong><span>● ● ▰</span></div>
+            <section class="preview-panel is-active" data-preview-panel="note">
+              <div class="note-header">
+                <span class="back-mark">‹</span>
+                <span class="account-avatar">小</span>
+                <strong>{escape(account_name)}</strong>
+                <span class="follow-button">关注</span>
+                <span class="share-mark">⌁</span>
+              </div>
+              <div class="phone-carousel">
+                <div class="preview-slides">{slides}</div>
+                <button class="carousel-arrow carousel-prev" type="button"
+                  data-carousel-direction="prev" aria-label="上一张">‹</button>
+                <button class="carousel-arrow carousel-next" type="button"
+                  data-carousel-direction="next" aria-label="下一张">›</button>
+                <span class="slide-count"><b data-current-slide>1</b>/<span data-slide-total>1</span></span>
+              </div>
+              <div class="preview-dots">{dots}</div>
+              <div class="note-copy">
+                <strong data-preview-title>{escape(active_title)}</strong>
+                <p data-preview-body>{escape(preview_body)}</p>
+                <span class="note-time">编辑于 刚刚</span>
+              </div>
+              <div class="note-actions">
+                <span>说点什么...</span><b>♡</b><b>☆</b><b>◌</b>
+              </div>
+            </section>
+            <section class="preview-panel cover-panel" data-preview-panel="cover" hidden>
+              <div class="discover-header">
+                <span>☰</span><strong>发现</strong><span>⌕</span>
+              </div>
+              <div class="discover-tabs"><b>推荐</b><span>直播</span><span>穿搭</span><span>旅行</span></div>
+              <div class="cover-grid">
+                <article class="cover-result is-selected">
+                  {cover_image_markup}
+                  <strong data-preview-title>{escape(active_title)}</strong>
+                  <small>{escape(account_name)}　♡ 0</small>
+                </article>
+                <article class="cover-result placeholder-result"><div></div><strong>更多内容</strong><small>用户　♡ 0</small></article>
+                <article class="cover-result placeholder-result"><div></div><strong>相关笔记</strong><small>用户　♡ 0</small></article>
+                <article class="cover-result placeholder-result"><div></div><strong>发现更多</strong><small>用户　♡ 0</small></article>
+              </div>
+              <div class="discover-nav"><span>首页</span><span>市集</span><b>＋</b><span>消息</span><span>我</span></div>
+            </section>
+          </div>
+        </div>
+      </aside>
+"""
+
+
 def render_post(post: Dict[str, Any]) -> str:
     body = require_list(post.get("body", []), "post.body")
     parts = [f"<p><strong>{escape(post.get('hook'))}</strong></p>"]
@@ -222,9 +462,7 @@ def render_images(
 ) -> str:
     items = []
     for image in images:
-        absolute = (source_dir / str(image["path"])).resolve()
-        relative = os.path.relpath(str(absolute), str(output_dir))
-        src = Path(relative).as_posix()
+        src = relative_image_src(image, source_dir, output_dir)
         provider_detail = ""
         if image.get("source_type") == "ai_generated":
             provider_id = str(image.get("provider") or "")
@@ -289,36 +527,74 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
     review = require_mapping(payload["review"], "review")
     images = require_list(payload["images"], "images")
     images_by_id = {str(item["id"]): item for item in images}
-    tags = " ".join(f'<span class="tag">#{escape(tag)}</span>' for tag in payload["tags"])
     cover_content = (
         f"<h3>{escape(cover.get('headline'))}</h3>"
         f"<p>{escape(cover.get('subheadline'))}</p>"
+    )
+    title_options = render_title_options(payload["titles"])
+    image_editor = render_image_editor(
+        images, payload["carousel"], source_dir, output_dir
+    )
+    phone_preview = render_phone_preview(
+        project,
+        payload["titles"],
+        post,
+        cover,
+        payload["carousel"],
+        images,
+        source_dir,
+        output_dir,
     )
 
     return f"""
   <main class="shell">
     <header class="topbar">
       <div>
+        <span class="eyebrow">小红书内容交付</span>
         <h1>{escape(project.get("name"))}</h1>
         <div class="meta">{escape(project.get("goal"))} · {escape(project.get("generated_at"))}</div>
       </div>
       <div class="status {status_class(review.get("status"))}">{escape(review.get("status"))}</div>
     </header>
-    <div class="layout">
-      <div>
-        <section class="section"><h2>推荐选题</h2><div class="stack">{render_topics(payload["topics"])}</div></section>
-        <section class="section"><h2>标题候选</h2><div class="stack">{render_titles(payload["titles"])}</div></section>
-        <section class="section"><h2>小红书正文</h2>{render_post(post)}</section>
-        <section class="section"><h2>标签</h2><div class="tags" id="tags-copy">{tags}</div><button class="copy-btn" type="button" data-copy-target="tags-copy">复制</button></section>
-        <section class="section"><h2>封面文案</h2>{render_copy_block("cover-copy", cover_content)}</section>
-        <section class="section"><h2>轮播图逐页脚本</h2><div class="carousel">{render_carousel(payload["carousel"], images_by_id)}</div></section>
+    <div class="publish-workspace">
+      <div class="editor-pane">
+        <section class="editor-section image-editor">
+          <div class="section-heading">
+            <div><h2>图片</h2><span>{len(images)} 张</span></div>
+            <span class="section-note">点击图片可同步查看笔记预览</span>
+          </div>
+          <div class="image-strip">{image_editor}</div>
+        </section>
+        <section class="editor-section title-editor">
+          <div class="section-heading">
+            <div><h2>标题</h2><span>{len(payload["titles"])} 个候选</span></div>
+            <span class="section-note">选择后同步到右侧预览</span>
+          </div>
+          <div class="title-options" role="listbox" aria-label="候选标题">
+            {title_options}
+          </div>
+        </section>
+        <section class="editor-section post-editor">
+          <div class="section-heading">
+            <div><h2>正文</h2></div>
+            <button class="copy-btn" type="button" data-copy-target="post-copy">复制正文</button>
+          </div>
+          {render_post_editor(post, payload["tags"])}
+        </section>
       </div>
-      <aside class="sidebar">
+      {phone_preview}
+    </div>
+    <details class="delivery-details">
+      <summary>查看交付详情</summary>
+      <div class="details-grid">
+        <section class="section"><h2>推荐选题</h2><div class="stack">{render_topics(payload["topics"])}</div></section>
+        <section class="section"><h2>封面文案</h2>{render_copy_block("cover-copy", cover_content)}</section>
+        <section class="section details-wide"><h2>轮播图逐页脚本</h2><div class="carousel">{render_carousel(payload["carousel"], images_by_id)}</div></section>
         <section class="section"><h2>图片使用方案</h2><div class="stack">{render_images(images, source_dir, output_dir)}</div></section>
         <section class="section"><h2>证据台账</h2><div class="stack">{render_evidence(payload["evidence"])}</div></section>
-        <section class="section"><h2>内容审核结果</h2>{render_review(review)}</section>
-      </aside>
-    </div>
+        <section class="section details-wide"><h2>内容审核结果</h2>{render_review(review)}</section>
+      </div>
+    </details>
   </main>
 """
 

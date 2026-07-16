@@ -150,7 +150,7 @@ def verify_staged_skill(skill_dir: Path) -> None:
             raise InstallError(f"unrewritten resource path remains in {skill_dir.name}")
 
     for match in re.finditer(
-        r"`((?:references|assets|templates|scripts)/[^`]+)`",
+        r"`((?:references|assets|templates|scripts)/[^\s`]+)(?:\s+[^`]*)?`",
         text,
     ):
         relative = Path(match.group(1))

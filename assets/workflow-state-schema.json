@@ -342,6 +342,9 @@
     },
     "visuals": {
       "$ref": "#/$defs/visuals"
+    },
+    "learning": {
+      "$ref": "#/$defs/learning"
     }
   },
   "oneOf": [
@@ -485,6 +488,50 @@
   ],
   "additionalProperties": true,
   "$defs": {
+    "learning": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "learning_notice_shown",
+        "storage_reference",
+        "applied_preference_ids",
+        "applied_knowledge_ids",
+        "pending_candidate_ids"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "learning_notice_shown": {
+          "type": "boolean"
+        },
+        "storage_reference": {
+          "const": "xhs-user-data://knowledge"
+        },
+        "applied_preference_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "applied_knowledge_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pending_candidate_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "visuals": {
       "type": "object",
       "required": [
