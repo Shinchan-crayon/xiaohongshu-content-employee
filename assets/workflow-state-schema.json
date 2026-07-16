@@ -31,72 +31,77 @@
     "stage": {
       "type": "string",
       "enum": [
-        "intake",
-        "research",
-        "angle_confirmation",
-        "drafting",
-        "review",
-        "visuals",
-        "delivery",
+        "prepare",
+        "evidence",
+        "compose",
+        "produce",
+        "deliver",
         "completed"
       ]
     },
     "status": {
-      "type": "string",
-      "enum": [
-        "IN_PROGRESS",
-        "WAITING_CONFIRMATION",
-        "BLOCKED",
-        "COMPLETED"
-      ]
+      "$ref": "#/$defs/status"
     },
     "artifacts": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "name",
-          "stage",
-          "status",
-          "reference"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "stage": {
-            "type": "string",
-            "enum": [
-              "intake",
-              "research",
-              "angle_confirmation",
-              "drafting",
-              "review",
-              "visuals",
-              "delivery",
-              "completed"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "IN_PROGRESS",
-              "WAITING_CONFIRMATION",
-              "BLOCKED",
-              "COMPLETED"
-            ]
-          },
-          "reference": {
-            "type": "string",
-            "minLength": 1
-          },
-          "summary": {
-            "type": "string"
+      "type": "object",
+      "properties": {
+        "first_task_input": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "material_record": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "evidence_package": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "complete_content_package": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "content_digest": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "image_runtime": {
+          "$ref": "#/$defs/image_runtime"
+        },
+        "generated_images": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object"
           }
         },
-        "additionalProperties": true
-      }
+        "delivery_json": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "delivery_html": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
     },
     "blockers": {
       "type": "array",
@@ -109,17 +114,7 @@
         ],
         "properties": {
           "stage": {
-            "type": "string",
-            "enum": [
-              "intake",
-              "research",
-              "angle_confirmation",
-              "drafting",
-              "review",
-              "visuals",
-              "delivery",
-              "completed"
-            ]
+            "$ref": "#/$defs/stage"
           },
           "reason": {
             "type": "string",
@@ -146,23 +141,25 @@
       "items": {
         "type": "object",
         "required": [
+          "kind",
           "stage",
           "question",
           "status"
         ],
         "properties": {
-          "stage": {
+          "kind": {
             "type": "string",
             "enum": [
-              "intake",
-              "research",
-              "angle_confirmation",
-              "drafting",
-              "review",
-              "visuals",
-              "delivery",
-              "completed"
+              "image_mode_selection",
+              "provider_model_selection",
+              "generation_batch_approval",
+              "critical_fact_resolution",
+              "requested_topic_selection",
+              "knowledge_candidate_review"
             ]
+          },
+          "stage": {
+            "$ref": "#/$defs/stage"
           },
           "question": {
             "type": "string",
@@ -177,7 +174,17 @@
             ]
           },
           "answer": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "digest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$"
           }
         },
         "additionalProperties": true
@@ -197,30 +204,10 @@
           "minimum": 0
         },
         "last_valid_stage": {
-          "type": "string",
-          "enum": [
-            "intake",
-            "research",
-            "angle_confirmation",
-            "drafting",
-            "review",
-            "visuals",
-            "delivery",
-            "completed"
-          ]
+          "$ref": "#/$defs/stage"
         },
         "resume_from": {
-          "type": "string",
-          "enum": [
-            "intake",
-            "research",
-            "angle_confirmation",
-            "drafting",
-            "review",
-            "visuals",
-            "delivery",
-            "completed"
-          ]
+          "$ref": "#/$defs/stage"
         },
         "artifact_refs": {
           "type": "array",
@@ -249,39 +236,13 @@
             "minimum": 0
           },
           "from": {
-            "type": "string",
-            "enum": [
-              "intake",
-              "research",
-              "angle_confirmation",
-              "drafting",
-              "review",
-              "visuals",
-              "delivery",
-              "completed"
-            ]
+            "$ref": "#/$defs/stage"
           },
           "to": {
-            "type": "string",
-            "enum": [
-              "intake",
-              "research",
-              "angle_confirmation",
-              "drafting",
-              "review",
-              "visuals",
-              "delivery",
-              "completed"
-            ]
+            "$ref": "#/$defs/stage"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "IN_PROGRESS",
-              "WAITING_CONFIRMATION",
-              "BLOCKED",
-              "COMPLETED"
-            ]
+            "$ref": "#/$defs/status"
           },
           "reason": {
             "type": "string",
@@ -292,22 +253,10 @@
             "format": "date-time"
           },
           "from_status": {
-            "type": "string",
-            "enum": [
-              "IN_PROGRESS",
-              "WAITING_CONFIRMATION",
-              "BLOCKED",
-              "COMPLETED"
-            ]
+            "$ref": "#/$defs/status"
           },
           "to_status": {
-            "type": "string",
-            "enum": [
-              "IN_PROGRESS",
-              "WAITING_CONFIRMATION",
-              "BLOCKED",
-              "COMPLETED"
-            ]
+            "$ref": "#/$defs/status"
           }
         },
         "additionalProperties": true
@@ -340,22 +289,15 @@
       },
       "additionalProperties": true
     },
-    "visuals": {
-      "$ref": "#/$defs/visuals"
-    },
     "learning": {
       "$ref": "#/$defs/learning"
     }
   },
   "oneOf": [
     {
-      "required": [
-        "stage",
-        "status"
-      ],
       "properties": {
         "stage": {
-          "const": "intake"
+          "const": "prepare"
         },
         "status": {
           "enum": [
@@ -367,13 +309,22 @@
       }
     },
     {
-      "required": [
-        "stage",
-        "status"
-      ],
       "properties": {
         "stage": {
-          "const": "research"
+          "const": "evidence"
+        },
+        "status": {
+          "enum": [
+            "IN_PROGRESS",
+            "BLOCKED"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "stage": {
+          "const": "compose"
         },
         "status": {
           "enum": [
@@ -385,63 +336,9 @@
       }
     },
     {
-      "required": [
-        "stage",
-        "status"
-      ],
       "properties": {
         "stage": {
-          "const": "angle_confirmation"
-        },
-        "status": {
-          "enum": [
-            "WAITING_CONFIRMATION"
-          ]
-        }
-      }
-    },
-    {
-      "required": [
-        "stage",
-        "status"
-      ],
-      "properties": {
-        "stage": {
-          "const": "drafting"
-        },
-        "status": {
-          "enum": [
-            "IN_PROGRESS",
-            "BLOCKED"
-          ]
-        }
-      }
-    },
-    {
-      "required": [
-        "stage",
-        "status"
-      ],
-      "properties": {
-        "stage": {
-          "const": "review"
-        },
-        "status": {
-          "enum": [
-            "IN_PROGRESS",
-            "BLOCKED"
-          ]
-        }
-      }
-    },
-    {
-      "required": [
-        "stage",
-        "status"
-      ],
-      "properties": {
-        "stage": {
-          "const": "visuals"
+          "const": "produce"
         },
         "status": {
           "enum": [
@@ -453,13 +350,9 @@
       }
     },
     {
-      "required": [
-        "stage",
-        "status"
-      ],
       "properties": {
         "stage": {
-          "const": "delivery"
+          "const": "deliver"
         },
         "status": {
           "enum": [
@@ -470,10 +363,6 @@
       }
     },
     {
-      "required": [
-        "stage",
-        "status"
-      ],
       "properties": {
         "stage": {
           "const": "completed"
@@ -488,6 +377,144 @@
   ],
   "additionalProperties": true,
   "$defs": {
+    "stage": {
+      "type": "string",
+      "enum": [
+        "prepare",
+        "evidence",
+        "compose",
+        "produce",
+        "deliver",
+        "completed"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "IN_PROGRESS",
+        "WAITING_CONFIRMATION",
+        "BLOCKED",
+        "COMPLETED"
+      ]
+    },
+    "image_runtime": {
+      "type": "object",
+      "required": [
+        "mode",
+        "setup_source",
+        "provider",
+        "model",
+        "size",
+        "quality",
+        "config_status",
+        "preflight_status",
+        "preflight_checked_at",
+        "generation_status"
+      ],
+      "properties": {
+        "mode": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "existing_only",
+            "ai_assist",
+            null
+          ]
+        },
+        "setup_source": {
+          "type": "string",
+          "enum": [
+            "first_run",
+            "saved_default",
+            "task_override"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "size": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quality": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "configured",
+            "not-configured",
+            "not-required",
+            null
+          ]
+        },
+        "preflight_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "passed",
+            "failed",
+            "not-required",
+            null
+          ]
+        },
+        "preflight_checked_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "generation_status": {
+          "type": "string",
+          "enum": [
+            "not_requested",
+            "waiting_approval",
+            "ready",
+            "generating",
+            "complete",
+            "blocked",
+            "uncertain",
+            "omitted_similar"
+          ]
+        },
+        "batch_digest": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "generated_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "learning": {
       "type": "object",
       "required": [
@@ -531,95 +558,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "visuals": {
-      "type": "object",
-      "required": [
-        "mode",
-        "substage",
-        "generation_status"
-      ],
-      "properties": {
-        "mode": {
-          "type": "string",
-          "enum": [
-            "existing_only",
-            "ai_assist"
-          ]
-        },
-        "substage": {
-          "type": "string",
-          "enum": [
-            "mode_selection",
-            "provider_selection",
-            "plan_review",
-            "prompt_review",
-            "ready",
-            "generating",
-            "complete"
-          ]
-        },
-        "provider": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "model": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "size": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "quality": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "visual_plan": {
-          "type": [
-            "object",
-            "null"
-          ]
-        },
-        "prompt_version": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "approval_digest": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "generation_status": {
-          "type": "string",
-          "enum": [
-            "not_requested",
-            "ready",
-            "generating",
-            "complete",
-            "blocked",
-            "uncertain"
-          ]
-        },
-        "generated_files": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": true
     }
   }
 }

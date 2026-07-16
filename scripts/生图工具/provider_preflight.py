@@ -71,7 +71,7 @@ def verify_local(skill_root: Path, provider_id: str) -> dict:
             else "hd"
         )
     )
-    request = adapter.build_request(config, "本地配置检查", size, quality)
+    adapter.build_request(config, "本地配置检查", size, quality)
 
     return {
         "status": "verified-local",
@@ -83,8 +83,6 @@ def verify_local(skill_root: Path, provider_id: str) -> dict:
         ),
         "model": config["model"],
         "default_size": size,
-        "endpoint": request["url"],
-        "api_key": "<configured>",
     }
 
 
@@ -100,16 +98,33 @@ def list_status(skill_root: Path) -> dict:
                 for key in providers
                 if key == "custom" or key.startswith("custom-")
             ) if isinstance(providers, dict) else []
-            choices.append({**item, "configured_ids": configured})
-        else:
             choices.append(
                 {
-                    **item,
+                    "id": provider_id,
+                    "name": item["name"],
+                    "status": (
+                        "configured" if configured else "not-configured"
+                    ),
+                    "restricted": True,
+                    "configured_ids": configured,
+                }
+            )
+        else:
+            spec = get_provider(provider_id)
+            recommended_alias = spec["recommended_model"]
+            choices.append(
+                {
+                    "id": provider_id,
+                    "name": item["name"],
                     "status": (
                         "configured"
                         if is_configured(raw_config, provider_id)
                         else "not-configured"
                     ),
+                    "recommended_model_alias": recommended_alias,
+                    "recommended_model": spec["models"][recommended_alias],
+                    "models": dict(spec["models"]),
+                    "default_size": spec["default_size"],
                 }
             )
     return {

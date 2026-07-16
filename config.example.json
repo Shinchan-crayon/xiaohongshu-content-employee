@@ -3,6 +3,16 @@
   "model": "gpt-image-2",
   "api_key": "",
   "default_provider": "thinkai-image-2",
+  "image_setup": {
+    "setup_version": 1,
+    "completed": false,
+    "visual_mode": null,
+    "default_provider": null,
+    "default_model": null,
+    "default_size": null,
+    "default_quality": null,
+    "updated_at": null
+  },
   "providers": {
     "thinkai-nano": {
       "api_key": "",

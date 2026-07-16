@@ -3,6 +3,7 @@
   "title": "Xiaohongshu Content Employee Delivery",
   "type": "object",
   "required": [
+    "content_digest",
     "project",
     "evidence",
     "topics",
@@ -11,10 +12,13 @@
     "tags",
     "cover",
     "carousel",
-    "images",
-    "review"
+    "images"
   ],
   "properties": {
+    "content_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "project": {
       "type": "object"
     },
@@ -81,22 +85,6 @@
           "model": {"type": "string"},
           "width": {"type": "integer"},
           "height": {"type": "integer"}
-        }
-      }
-    },
-    "review": {
-      "type": "object",
-      "required": ["status"],
-      "properties": {
-        "status": {
-          "type": "string",
-          "enum": ["PASS", "PASS_WITH_NOTES"]
-        },
-        "checks": {
-          "type": "array",
-          "items": {
-            "type": "object"
-          }
         }
       }
     }

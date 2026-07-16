@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the eight Xiaohongshu content Skills into a Codex skills directory."""
+"""Install the seven Xiaohongshu content Skills into a Codex skills directory."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ EXPECTED_SKILLS = (
     "product-material-intake",
     "xhs-research-strategy",
     "xhs-copy-storyboard",
-    "xhs-humanize-review",
     "xhs-visual-planner",
     "xhs-approved-image-generator",
     "xhs-html-delivery",
@@ -56,7 +55,6 @@ IMAGE_GENERATION_RUNTIME_FILES = (
     Path("scripts") / "生图工具" / "providers" / "thinkai.py",
     Path("scripts") / "生图工具" / "providers" / "thinkai_nano.py",
     Path("scripts") / "生图工具" / "providers" / "volcengine.py",
-    Path("scripts") / "图片合成工具" / "render_carousel.py",
 )
 
 SCRIPT_PATH = Path(__file__).resolve()

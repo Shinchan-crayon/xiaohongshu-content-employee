@@ -20,6 +20,7 @@ def calculate_hash(
     prompt: str,
     raw_size: str,
     quality: str = "hd",
+    reference_image_sha256: str = "",
 ) -> dict:
     config = load_config(skill_root, provider)
     resolved_provider = config["provider"]
@@ -36,6 +37,7 @@ def calculate_hash(
             model=config["model"],
             size=size,
             quality=approval_quality,
+            reference_image_sha256=reference_image_sha256,
         ),
     }
 
@@ -49,6 +51,11 @@ def main() -> int:
         "--provider",
         default="thinkai-image-2",
         help="图片生成渠道 ID；自定义渠道使用已保存的 custom-* ID",
+    )
+    parser.add_argument(
+        "--reference-image-sha256",
+        default="",
+        help="官网产品参考图 SHA-256；Seedream 产品生图必须提供",
     )
     parser.add_argument("--prompt", required=True, help="已展示给用户的精确 Prompt")
     parser.add_argument(
@@ -72,6 +79,7 @@ def main() -> int:
             args.prompt,
             args.size,
             args.quality,
+            args.reference_image_sha256,
         )
     except Exception as exc:
         print(str(exc), file=sys.stderr)

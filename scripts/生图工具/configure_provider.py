@@ -241,7 +241,7 @@ def main() -> int:
         if provider_id in FORMAL_PROVIDER_IDS:
             spec = get_provider(provider_id)
             api_key = read_api_key(args.api_key_stdin, spec["name"])
-            path = save_formal_provider_config(
+            save_formal_provider_config(
                 plugin_root,
                 provider_id,
                 api_key,
@@ -253,14 +253,13 @@ def main() -> int:
                 "provider_name": spec["name"],
                 "model_alias": args.model_alias,
                 "model": resolve_model(provider_id, args.model_alias),
-                "config_path": str(path),
                 "default_provider": DEFAULT_PROVIDER,
             }
         elif provider_id == "custom":
             if not args.profile or not args.endpoint or not args.model:
                 parser.error("custom 必须提供 --profile、--endpoint 和 --model。")
             api_key = read_api_key(args.api_key_stdin, args.name)
-            path = save_custom_provider_config(
+            save_custom_provider_config(
                 plugin_root,
                 provider_id=args.custom_id,
                 display_name=args.name,
@@ -278,7 +277,6 @@ def main() -> int:
                 "provider": args.custom_id,
                 "provider_name": args.name,
                 "profile": args.profile,
-                "config_path": str(path),
                 "default_provider": DEFAULT_PROVIDER,
             }
         else:

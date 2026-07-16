@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""受控并发生成并合成已批准的小红书轮播图片。"""
+"""并发生成已批准的小红书成品图，不做本地图片加工。"""
 
 from __future__ import annotations
 
@@ -10,15 +10,15 @@ import hmac
 import json
 import os
 import re
+import shutil
 import sys
 import tempfile
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
-from copy import deepcopy
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable
 
 from generate_image import (
-    GenerationUncertainError,
     approval_digest,
     generate_approved_image,
     load_config,
@@ -28,23 +28,22 @@ from generate_image import (
 from provider_preflight import verify_local
 
 
-DEFAULT_MAX_WORKERS = 3
-MAX_MAX_WORKERS = 8
+DEFAULT_MAX_WORKERS = 0
+MAX_ATTEMPTS = 3
 STATE_FILENAME = "generation-state.json"
 ITEM_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+FINAL_STATUSES = {"complete", "omitted_similar"}
 
 
 class BatchGenerationError(RuntimeError):
     """批量生图输入、状态或执行不符合约束。"""
 
 
-class CompositionUncertainError(GenerationUncertainError):
-    """付费生图已完成，但本地合成结果不能安全确认。"""
-
-
-def validate_max_workers(value: int) -> int:
-    if not 1 <= value <= MAX_MAX_WORKERS:
-        raise ValueError(f"并发数必须在 1 到 {MAX_MAX_WORKERS} 之间。")
+def validate_max_workers(value: int | None) -> int:
+    if value is None:
+        return 0
+    if value < 0:
+        raise ValueError("并发数不能小于 0；0 表示一次并发全部待生成页面。")
     return value
 
 
@@ -102,19 +101,13 @@ def _normalized_batch(batch: dict) -> dict:
         seen_ids.add(item_id)
         seen_pages.add(page)
 
-        render = raw.get("render")
-        if not isinstance(render, dict):
-            raise ValueError(f"图片项目缺少合成配置：{item_id}")
-        if render.get("generated_image_target") != "background_path":
-            raise ValueError(
-                f"AI 图片只能作为背景使用，不能重绘真实产品：{item_id}"
-            )
-
         normalized = {
             "id": item_id,
             "page": page,
             "prompt": str(raw.get("prompt") or "").strip(),
-            "prompt_review": str(raw.get("prompt_review") or "").strip(),
+            "generation_batch_approval": str(
+                raw.get("generation_batch_approval") or ""
+            ).strip(),
             "provider": str(raw.get("provider") or "").strip(),
             "model": str(raw.get("model") or "").strip(),
             "size": str(raw.get("size") or "").strip(),
@@ -122,20 +115,28 @@ def _normalized_batch(batch: dict) -> dict:
             "approval_digest": str(raw.get("approval_digest") or "")
             .strip()
             .lower(),
-            "render": deepcopy(render),
+            "reference_image_path": str(
+                raw.get("reference_image_path") or ""
+            ).strip(),
+            "reference_image_sha256": str(
+                raw.get("reference_image_sha256") or ""
+            ).strip().lower(),
         }
-        if any(
-            not normalized[field]
-            for field in (
-                "prompt",
-                "provider",
-                "model",
-                "size",
-                "quality",
-                "approval_digest",
-            )
-        ):
+        required = (
+            "prompt",
+            "provider",
+            "model",
+            "size",
+            "quality",
+            "approval_digest",
+        )
+        if any(not normalized[field] for field in required):
             raise ValueError(f"图片项目执行条件不完整：{item_id}")
+        if normalized["provider"] == "seedream" and (
+            not normalized["reference_image_path"]
+            or not re.fullmatch(r"[0-9a-f]{64}", normalized["reference_image_sha256"])
+        ):
+            raise ValueError(f"Seedream 图片项目必须绑定官网参考图及哈希：{item_id}")
         items.append(normalized)
 
     items.sort(key=lambda item: item["page"])
@@ -153,8 +154,11 @@ def create_batch_state(batch: dict) -> dict:
                 "id": item["id"],
                 "page": item["page"],
                 "generation_status": "pending",
+                "attempts": 0,
+                "errors": [],
                 "result": None,
                 "final_path": None,
+                "duplicate_of": None,
                 "error": None,
             }
             for item in normalized["items"]
@@ -183,6 +187,12 @@ def _load_or_create_state(output_root: Path, batch: dict) -> dict:
         item.get("id") for item in state_items
     ] != [item["id"] for item in expected["items"]]:
         raise BatchGenerationError("批量生成状态与当前轮播顺序不一致。")
+    for item in state_items:
+        item.setdefault("attempts", 0)
+        item.setdefault("errors", [])
+        item.setdefault("duplicate_of", None)
+        if item.get("generation_status") in {"sending", "uncertain"}:
+            item["generation_status"] = "pending"
     return state
 
 
@@ -221,6 +231,17 @@ def _validate_output_root(skill_root: Path, output_root: Path) -> Path:
     return root
 
 
+def _validate_reference(item: dict) -> None:
+    if not item["reference_image_path"]:
+        return
+    path = Path(item["reference_image_path"]).expanduser().resolve()
+    if not path.is_file():
+        raise ValueError(f"官网产品参考图不存在：{item['id']}")
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if not hmac.compare_digest(actual, item["reference_image_sha256"]):
+        raise ValueError(f"官网产品参考图与批准版本不一致：{item['id']}")
+
+
 def _validate_approvals(
     skill_root: Path,
     batch: dict,
@@ -231,8 +252,9 @@ def _validate_approvals(
     runtime_by_provider = {}
     prepared = []
     for item in normalized["items"]:
-        if item["prompt_review"] != "confirmed":
+        if item["generation_batch_approval"] != "confirmed":
             raise ValueError(f"图片项目尚未获得用户明确批准：{item['id']}")
+        _validate_reference(item)
         provider = item["provider"]
         if provider not in runtime_by_provider:
             check = preflight(skill_root, provider)
@@ -240,10 +262,15 @@ def _validate_approvals(
             if (
                 check.get("status") != "verified-local"
                 or check.get("network_request_sent") is not False
-                or check.get("provider") != provider
-                or check.get("model") != config.get("model")
             ):
                 raise ValueError(f"图片渠道本地预检不通过：{provider}")
+            if (
+                check.get("provider") != item["provider"]
+                or check.get("model") != item["model"]
+            ):
+                raise ValueError(
+                    f"图片渠道或模型预检结果与批准版本不一致：{item['id']}"
+                )
             runtime_by_provider[provider] = config
         config = runtime_by_provider[provider]
         if config.get("provider") != provider or config.get("model") != item["model"]:
@@ -256,29 +283,12 @@ def _validate_approvals(
             model=item["model"],
             size=resolved_size,
             quality=resolved_quality,
+            reference_image_sha256=item["reference_image_sha256"],
         )
         if not hmac.compare_digest(digest, item["approval_digest"]):
-            raise ValueError(f"图片项目审核批准已失效：{item['id']}")
+            raise ValueError(f"图片项目批准已失效：{item['id']}")
         prepared.append(item)
     return prepared
-
-
-def compose_carousel_item(item: dict, result: dict, output_path: Path) -> str:
-    renderer_dir = Path(__file__).resolve().parent.parent / "图片合成工具"
-    if str(renderer_dir) not in sys.path:
-        sys.path.insert(0, str(renderer_dir))
-    from render_carousel import atomic_save, render
-
-    image_path = Path(str(result.get("image_path") or "")).expanduser()
-    if not image_path.is_file():
-        raise CompositionUncertainError("生图已完成，但生成图片不存在，无法合成。")
-    payload = deepcopy(item["render"])
-    payload.pop("generated_image_target", None)
-    payload["background_path"] = str(image_path)
-    payload["output_path"] = str(output_path)
-    image, _font_path = render(payload)
-    atomic_save(image, output_path)
-    return str(output_path)
 
 
 def _relative_result(output_root: Path, result: dict) -> dict:
@@ -289,7 +299,7 @@ def _relative_result(output_root: Path, result: dict) -> dict:
             try:
                 normalized[key] = path.relative_to(output_root).as_posix()
             except ValueError as exc:
-                raise CompositionUncertainError(
+                raise BatchGenerationError(
                     "生成结果路径超出当前用户任务目录。"
                 ) from exc
         else:
@@ -297,17 +307,83 @@ def _relative_result(output_root: Path, result: dict) -> dict:
     return normalized
 
 
+def _copy_model_output(item: dict, result: dict, output_root: Path) -> Path:
+    source = Path(str(result.get("image_path") or "")).expanduser().resolve()
+    if not source.is_file():
+        raise BatchGenerationError("图片渠道返回成功，但生成图片文件不存在。")
+    suffix = source.suffix.lower()
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp"}:
+        raise BatchGenerationError("生成图片格式不是 PNG、JPEG 或 WebP。")
+    destination = output_root / "final" / f"{item['page']:02d}-{item['id']}{suffix}"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.tmp")
+    shutil.copyfile(source, temporary)
+    os.replace(temporary, destination)
+    return destination
+
+
+def _image_fingerprint(path: Path) -> tuple[int, ...] | None:
+    try:
+        from PIL import Image
+
+        with Image.open(path) as image:
+            pixels = list(image.convert("L").resize((16, 16)).getdata())
+        average = sum(pixels) / len(pixels)
+        return tuple(1 if pixel >= average else 0 for pixel in pixels)
+    except Exception:
+        return None
+
+
+def _is_near_duplicate(left: Path, right: Path) -> bool:
+    if hashlib.sha256(left.read_bytes()).digest() == hashlib.sha256(
+        right.read_bytes()
+    ).digest():
+        return True
+    left_hash = _image_fingerprint(left)
+    right_hash = _image_fingerprint(right)
+    if left_hash is None or right_hash is None:
+        return False
+    distance = sum(a != b for a, b in zip(left_hash, right_hash))
+    return distance <= 12
+
+
+def _remove_similar_images(output_root: Path, state: dict) -> None:
+    kept: list[dict] = []
+    for item in state["items"]:
+        if item["generation_status"] != "complete" or not item.get("final_path"):
+            continue
+        current = output_root / item["final_path"]
+        duplicate = next(
+            (
+                other
+                for other in kept
+                if _is_near_duplicate(
+                    current,
+                    output_root / str(other["final_path"]),
+                )
+            ),
+            None,
+        )
+        if duplicate is None:
+            kept.append(item)
+            continue
+        current.unlink(missing_ok=True)
+        item["generation_status"] = "omitted_similar"
+        item["duplicate_of"] = duplicate["id"]
+        item["final_path"] = None
+        item["error"] = None
+
+
 def batch_generate(
     skill_root: Path,
     batch: dict,
     output_root: Path,
-    max_workers: int = DEFAULT_MAX_WORKERS,
+    max_workers: int | None = DEFAULT_MAX_WORKERS,
     generator: Callable = generate_approved_image,
-    compositor: Callable = compose_carousel_item,
     config_loader: Callable = load_config,
     preflight: Callable = verify_local,
 ) -> dict:
-    validate_max_workers(max_workers)
+    worker_limit = validate_max_workers(max_workers)
     skill_root = Path(skill_root).resolve()
     output_root = _validate_output_root(skill_root, Path(output_root))
     lock_descriptor = _acquire_lock(output_root)
@@ -320,126 +396,123 @@ def batch_generate(
         )
         state = _load_or_create_state(output_root, batch)
         state_by_id = {item["id"]: item for item in state["items"]}
-
-        interrupted = [
-            item for item in state["items"]
-            if item["generation_status"] == "sending"
-        ]
-        if interrupted:
-            for item in interrupted:
-                item["generation_status"] = "uncertain"
-                item["error"] = "上次执行在付费请求期间中断，请先检查渠道后台。"
-            state["status"] = "blocked"
-            _save_state(output_root, state)
-            return state
-
-        if any(
-            item["generation_status"] in {"failed", "uncertain"}
-            for item in state["items"]
-        ):
-            state["status"] = "blocked"
-            _save_state(output_root, state)
-            return state
-
         pending = [
-            item for item in prepared_items
-            if state_by_id[item["id"]]["generation_status"] != "complete"
+            item
+            for item in prepared_items
+            if state_by_id[item["id"]]["generation_status"] not in FINAL_STATUSES
+            and int(state_by_id[item["id"]].get("attempts", 0)) < MAX_ATTEMPTS
         ]
         if not pending:
-            state["status"] = "complete"
+            _remove_similar_images(output_root, state)
+            failed = [
+                item for item in state["items"]
+                if item["generation_status"] not in FINAL_STATUSES
+            ]
+            state["status"] = "blocked" if failed else "complete"
+            state["failed_pages"] = [
+                {"page": item["page"], "error": item.get("error")}
+                for item in failed
+            ]
             _save_state(output_root, state)
             return state
 
-        def run_job(item: dict) -> tuple[dict, str]:
-            raw_result = generator(
-                skill_root=skill_root,
-                provider=item["provider"],
-                prompt=item["prompt"],
-                approval_hash=item["approval_digest"],
-                size=item["size"],
-                quality=item["quality"],
-                output_dir=output_root / "artifacts" / item["id"],
-                allowed_output_root=output_root / "artifacts",
-            )
-            final_path = (
-                output_root
-                / "final"
-                / f"{item['page']:02d}-{item['id']}.png"
-            )
-            try:
-                composed_path = compositor(item, raw_result, final_path)
-            except GenerationUncertainError:
-                raise
-            except Exception as exc:
-                raise CompositionUncertainError(
-                    "付费生图已经完成，但本地合成失败，不得自动重新生成。"
-                ) from exc
-            return _relative_result(output_root, raw_result), str(composed_path)
-
-        next_index = 0
-        futures: dict[Future, dict] = {}
-        stopped = False
+        state_lock = threading.Lock()
         state["status"] = "generating"
+        for item in pending:
+            state_by_id[item["id"]]["generation_status"] = "sending"
         _save_state(output_root, state)
 
+        def run_job(item: dict) -> tuple[dict, str] | None:
+            state_item = state_by_id[item["id"]]
+            while state_item["attempts"] < MAX_ATTEMPTS:
+                with state_lock:
+                    state_item["attempts"] += 1
+                    attempt = state_item["attempts"]
+                    state_item["generation_status"] = "sending"
+                    state_item["error"] = None
+                    _save_state(output_root, state)
+                try:
+                    attempt_output_dir = (
+                        output_root
+                        / "artifacts"
+                        / item["id"]
+                        / f"attempt-{attempt}"
+                    )
+                    item_output_root = output_root / "artifacts" / item["id"]
+                    raw_result = generator(
+                        skill_root=skill_root,
+                        provider=item["provider"],
+                        prompt=item["prompt"],
+                        approval_hash=item["approval_digest"],
+                        size=item["size"],
+                        quality=item["quality"],
+                        output_dir=attempt_output_dir,
+                        allowed_output_root=item_output_root,
+                        reference_image_path=(
+                            Path(item["reference_image_path"])
+                            if item["reference_image_path"]
+                            else None
+                        ),
+                        reference_image_sha256=(
+                            item["reference_image_sha256"] or None
+                        ),
+                    )
+                    final_path = _copy_model_output(item, raw_result, output_root)
+                    return _relative_result(output_root, raw_result), str(final_path)
+                except Exception as exc:
+                    message = str(exc) or exc.__class__.__name__
+                    with state_lock:
+                        state_item["errors"].append(
+                            {"attempt": attempt, "error": message}
+                        )
+                        state_item["error"] = message
+                        state_item["generation_status"] = (
+                            "failed"
+                            if state_item["attempts"] >= MAX_ATTEMPTS
+                            else "retrying"
+                        )
+                        _save_state(output_root, state)
+            return None
+
+        workers = len(pending) if worker_limit == 0 else min(worker_limit, len(pending))
         with ThreadPoolExecutor(
-            max_workers=min(max_workers, len(pending)),
+            max_workers=workers,
             thread_name_prefix="xhs-image",
         ) as executor:
-            def submit_next() -> bool:
-                nonlocal next_index
-                if stopped or next_index >= len(pending):
-                    return False
-                item = pending[next_index]
-                next_index += 1
+            futures = {executor.submit(run_job, item): item for item in pending}
+            for future in as_completed(futures):
+                item = futures[future]
                 state_item = state_by_id[item["id"]]
-                state_item["generation_status"] = "sending"
-                state_item["error"] = None
-                _save_state(output_root, state)
-                futures[executor.submit(run_job, item)] = item
-                return True
+                outcome = future.result()
+                with state_lock:
+                    if outcome is not None:
+                        result, final_path = outcome
+                        state_item["generation_status"] = "complete"
+                        state_item["result"] = result
+                        state_item["final_path"] = (
+                            Path(final_path)
+                            .resolve()
+                            .relative_to(output_root)
+                            .as_posix()
+                        )
+                        state_item["error"] = None
+                    _save_state(output_root, state)
 
-            for _ in range(min(max_workers, len(pending))):
-                submit_next()
-
-            while futures:
-                future = next(as_completed(tuple(futures)))
-                item = futures.pop(future)
-                state_item = state_by_id[item["id"]]
-                try:
-                    result, composed_path = future.result()
-                except GenerationUncertainError as exc:
-                    state_item["generation_status"] = "uncertain"
-                    state_item["error"] = str(exc)
-                    stopped = True
-                except Exception as exc:
-                    state_item["generation_status"] = "failed"
-                    state_item["error"] = str(exc)
-                    stopped = True
-                else:
-                    state_item["generation_status"] = "complete"
-                    state_item["result"] = result
-                    final = Path(composed_path).expanduser().resolve()
-                    try:
-                        state_item["final_path"] = final.relative_to(
-                            output_root
-                        ).as_posix()
-                    except ValueError:
-                        state_item["generation_status"] = "uncertain"
-                        state_item["error"] = "合成图片路径超出当前用户任务目录。"
-                        stopped = True
-                _save_state(output_root, state)
-                if not stopped:
-                    submit_next()
-
-        state["status"] = (
-            "complete"
-            if all(
-                item["generation_status"] == "complete"
-                for item in state["items"]
-            )
-            else "blocked"
-        )
+        _remove_similar_images(output_root, state)
+        failed = [
+            item for item in state["items"]
+            if item["generation_status"] not in FINAL_STATUSES
+        ]
+        state["failed_pages"] = [
+            {
+                "page": item["page"],
+                "id": item["id"],
+                "attempts": item["attempts"],
+                "error": item.get("error"),
+            }
+            for item in failed
+        ]
+        state["status"] = "blocked" if failed else "complete"
         _save_state(output_root, state)
         return state
     finally:
@@ -448,7 +521,7 @@ def batch_generate(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="并发生成并合成已批准的小红书轮播图片。"
+        description="一次并发生成全部已批准的小红书成品图。"
     )
     parser.add_argument("--batch-file", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
@@ -457,7 +530,7 @@ def parse_args() -> argparse.Namespace:
         "--max-workers",
         type=int,
         default=DEFAULT_MAX_WORKERS,
-        help="最大并发数，默认 3，范围 1-8",
+        help="最大并发数；默认 0 表示待生成页面全部并发，无固定上限",
     )
     return parser.parse_args()
 

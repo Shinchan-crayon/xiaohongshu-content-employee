@@ -1,6 +1,0 @@
-interface:
-  display_name: "小红书自然化审核"
-  short_description: "先核事实和风险，再检查一致性、自然表达与 AI 写作模式"
-  default_prompt: "使用 $xhs-humanize-review 审核这份小红书内容包，先核实事实再做自然化。"
-policy:
-  allow_implicit_invocation: false

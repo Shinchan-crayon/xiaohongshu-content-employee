@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.6.0",
-  "description": "将产品素材转化为可审核的小红书文案、可选 AI 视觉和 HTML 交付页，并持续学习用户明确偏好。",
+  "version": "1.8.0",
+  "description": "官网参考图生图、全量并发、失败页重试和快速 HTML 交付的小红书内容工作流。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"
@@ -10,21 +10,20 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "小红书内容员工",
-    "shortDescription": "可持续学习用户偏好的小红书图文工作流",
-    "longDescription": "整理产品事实、生成选题与文案、执行自然化审核，持续学习用户明确偏好，并可在确认图片方案和 Prompt 后并发生成 1080x1440 小红书视觉成品。",
+    "shortDescription": "参考图生图、全量并发的小红书图文工作流",
+    "longDescription": "首次使用设置图片渠道，后续自动复用；使用官网产品参考图和简洁 Prompt 一次并发生成全部页面，失败页最多重试三次，直接输出模型原图和 HTML。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [
       "Content generation",
-      "Review",
       "Image generation",
       "HTML delivery",
       "Personalized learning"
     ],
     "defaultPrompt": [
-      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容，并告诉我本次采用了哪些历史偏好。",
-      "整理产品资料并制作小红书文案，审核通过后让我选择是否使用 AI 补图。",
-      "审核这套小红书文案，并为确认后的内容生成 1080x1440 轮播图。"
+      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；首次使用设置图片模式和生图模型后自动继续。",
+      "使用官网产品参考图和简洁 Prompt 生成小红书成品图，把视觉创意交给模型自由发挥。",
+      "沿用已保存的图片设置，一次并发生成全部页面，失败页最多重试三次并输出 HTML。"
     ],
     "brandColor": "#FF4D6D",
     "composerIcon": "./assets/plugin-icon.png",

@@ -1,5 +1,7 @@
 """火山引擎方舟图片生成适配器。"""
 
+from __future__ import annotations
+
 import json
 from typing import Tuple
 
@@ -60,17 +62,31 @@ def build_headers(api_key: str) -> dict:
     }
 
 
-def build_generation_body(model: str, prompt: str, size: str) -> dict:
-    return {
+def build_generation_body(
+    model: str,
+    prompt: str,
+    size: str,
+    reference_images: list[str] | None = None,
+) -> dict:
+    body = {
         "model": model,
         "prompt": prompt,
         "size": size,
         "response_format": "url",
         "watermark": False,
     }
+    if reference_images:
+        body["image"] = reference_images
+    return body
 
 
-def build_request(config: dict, prompt: str, size: str, quality: str) -> dict:
+def build_request(
+    config: dict,
+    prompt: str,
+    size: str,
+    quality: str,
+    reference_images: list[str] | None = None,
+) -> dict:
     normalized_size = normalize_size(size)
     return {
         "url": generation_url(config["base_url"]),
@@ -79,6 +95,7 @@ def build_request(config: dict, prompt: str, size: str, quality: str) -> dict:
             config["model"],
             prompt,
             normalized_size,
+            reference_images,
         ),
     }
 

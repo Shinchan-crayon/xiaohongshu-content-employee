@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书已批准生图"
-  short_description: "执行已确认 Prompt 并合成 1080x1440 成品图"
+  short_description: "全量并发执行已确认 Prompt，直接交付模型原图"
   default_prompt: "使用 $xhs-approved-image-generator 执行我刚刚确认的图片方案和 Prompt。"
 policy:
   allow_implicit_invocation: false

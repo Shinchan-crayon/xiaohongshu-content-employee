@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书内容员工"
-  short_description: "从产品素材到文案、轮播脚本、审核和 HTML 交付的完整工作流"
-  default_prompt: "使用 $xhs-content-employee 将这些产品素材整理成可审核的小红书内容包和 HTML 交付页。"
+  short_description: "参考图生图、全量并发和快速 HTML 交付"
+  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；首次使用先让我选择图片模式和生图模型，确认后自动继续。"
 policy:
   allow_implicit_invocation: true

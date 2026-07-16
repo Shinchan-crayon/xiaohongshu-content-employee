@@ -1,22 +1,18 @@
 ---
 name: xhs-html-delivery
-description: 校验结构化内容包并生成支持复制、图片预览下载和审核展示的独立 HTML 交付页。
+description: 在 deliver 阶段执行资源和映射校验，生成可复制、预览和下载图片的独立 HTML。
 ---
 
 # Xiaohongshu HTML Delivery
 
 ## Input Contract
 
-UTF-8 JSON 文件，字段遵循 `../../assets/delivery-schema.json`。
-
-同时接收视觉阶段摘要：
+UTF-8 JSON 文件，字段遵循 `../../assets/delivery-schema.json`：
 
 ```yaml
-visual_status:
+content_digest: string
+image_runtime:
   mode: existing_only | ai_assist
-  stage: visuals
-  substage: complete
-visual_plan: object
 generated_images: [object] | null
 ```
 
@@ -33,27 +29,27 @@ asset_check:
 ## Execution
 
 ```bash
-python3 scripts/HTML生成工具/generate_delivery.py INPUT.json OUTPUT.html
+python3 ../../scripts/HTML生成工具/generate_delivery.py INPUT.json OUTPUT.html
 ```
 
-生成前必须确认：
+生成前只执行技术校验：
 
-- 审核状态不是 `BLOCKED`。
-- 主流程已达到 `visuals / complete`。
-- `existing_only` 已确认图片规划，且规划中引用的真实图片全部可访问。
-- `ai_assist` 已完成 `generated_images`；每张 AI 成品必须记录 `source_type`、`provider`、`model`，并且实际尺寸为 1080x1440。
-- 所有本地图片存在。
-- 文案、轮播页和图片 ID 对应。
-- 交付 JSON 不含敏感密钥。
+- `content_digest` 格式有效。
+- 所有图片存在。
+- AI 图片记录 `source_type`、`provider`、`model`、`width` 和 `height`。
+- AI 图片为原生 3:4 竖图，不强制 1080x1440。
+- 轮播页码与图片 ID 对应。
+- `omitted_similar` 图片已经从交付图片和轮播列表移除。
+- 交付 JSON 不含敏感配置。
+
+不运行文案风险、质量、自然化、AI 特征或品牌乱码检测。
 
 ## Failure Rules
 
-- 缺少必需字段：停止，不生成半成品。
-- 缺少本地图片：停止并列出路径。
-- `ai_assist` 尚未完成或生成结果未验证：停止并回到视觉阶段，不得把模型原图直接交付。
-- 图片服务不可用：由主流程询问用户是否改选 `existing_only`；本 Skill 不自动切换模式。
+- 缺字段、缺文件、比例错误或映射错误：留在 `deliver / BLOCKED`。
+- 不在本阶段润色、改标题、改文案或加工图片。
+- 图片服务不可用时不自动切换模式或渠道。
 
 ## Required References
 
-- `../../references/审核规则/最终审核清单.md`
 - `../../templates/HTML交付模板/delivery.html`

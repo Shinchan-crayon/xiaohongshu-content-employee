@@ -111,7 +111,7 @@ def resolve_provider_size(provider: str, raw_size: Optional[str]) -> str:
         if normalized_provider not in portrait_sizes:
             raise ValueError(
                 f"{normalized_provider} 不支持 xhs-portrait 3:4 原生尺寸，"
-                "请使用支持的尺寸生成后再由合成器裁切。"
+                "请选择支持 3:4 原生输出的渠道或尺寸。"
             )
         return portrait_sizes[normalized_provider]
     if normalized_provider in FORMAL_PROVIDER_IDS:
@@ -154,6 +154,7 @@ def approval_digest(
     model: Optional[str] = None,
     size: Optional[str] = None,
     quality: Optional[str] = None,
+    reference_image_sha256: Optional[str] = None,
 ) -> str:
     normalized_prompt = validate_prompt(prompt)
     payload = json.dumps(
@@ -163,6 +164,9 @@ def approval_digest(
             "model": str(model or "").strip(),
             "size": str(size or "").strip(),
             "quality": str(quality or "").strip(),
+            "reference_image_sha256": str(
+                reference_image_sha256 or ""
+            ).strip().lower(),
         },
         ensure_ascii=False,
         sort_keys=True,
@@ -178,9 +182,17 @@ def validate_approval(
     model: Optional[str] = None,
     size: Optional[str] = None,
     quality: Optional[str] = None,
+    reference_image_sha256: Optional[str] = None,
 ) -> str:
     normalized = validate_prompt(prompt)
-    actual_digest = approval_digest(normalized, provider, model, size, quality)
+    actual_digest = approval_digest(
+        normalized,
+        provider,
+        model,
+        size,
+        quality,
+        reference_image_sha256,
+    )
     if not hmac.compare_digest(actual_digest, expected_digest.strip().lower()):
         raise ValueError("当前 Prompt 与用户审核通过的版本不一致，请重新展示并审核。")
     return normalized
@@ -484,6 +496,8 @@ def redact_snapshot(value, omitted_values=None):
         return [redact_snapshot(item, omitted_values) for item in value]
     if isinstance(value, str) and value in omitted_values:
         return "<base64 omitted>"
+    if isinstance(value, str) and value.startswith("data:image/"):
+        return "<reference image omitted>"
     if isinstance(value, str) and value.startswith(("https://", "http://")):
         return redact_url(value)
     return value
@@ -531,7 +545,12 @@ def write_artifacts(
     _write_output_bytes(
         request_path,
         (
-            json.dumps(request_body, ensure_ascii=False, indent=2) + "\n"
+            json.dumps(
+                redact_snapshot(deepcopy(request_body)),
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
         ).encode("utf-8"),
         output_dir_fd,
     )
@@ -704,6 +723,8 @@ def generate_approved_image(
     quality: str = "hd",
     output_dir: Optional[Path] = None,
     allowed_output_root: Optional[Path] = None,
+    reference_image_path: Optional[Path] = None,
+    reference_image_sha256: Optional[str] = None,
 ) -> dict:
     """执行一张已审核图片，供单图 CLI 和文章工作流共同复用。"""
 
@@ -714,6 +735,35 @@ def generate_approved_image(
     config = load_config(Path(skill_root), provider)
     resolved_size = resolve_provider_size(config["provider"], size)
     approval_quality = resolve_provider_quality(config["provider"], quality)
+    reference_data_urls = None
+    normalized_reference_hash = str(reference_image_sha256 or "").strip().lower()
+    if reference_image_path is not None:
+        reference_path = Path(reference_image_path).expanduser().resolve()
+        if not reference_path.is_file():
+            raise GenerationError("产品参考图不存在。")
+        reference_bytes = reference_path.read_bytes()
+        actual_reference_hash = hashlib.sha256(reference_bytes).hexdigest()
+        if not normalized_reference_hash or not hmac.compare_digest(
+            actual_reference_hash,
+            normalized_reference_hash,
+        ):
+            raise GenerationError("产品参考图与批准版本不一致。")
+        suffix = reference_path.suffix.lower()
+        mime_types = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }
+        mime_type = mime_types.get(suffix)
+        if mime_type is None:
+            raise GenerationError("产品参考图只支持 JPEG、PNG 或 WebP。")
+        reference_data_urls = [
+            f"data:{mime_type};base64,"
+            + base64.b64encode(reference_bytes).decode("ascii")
+        ]
+    if config["provider"] == "seedream" and not reference_data_urls:
+        raise GenerationError("Seedream 产品生图必须绑定官网产品参考图。")
     approved_prompt = validate_approval(
         prompt,
         approval_hash,
@@ -721,6 +771,7 @@ def generate_approved_image(
         config["model"],
         resolved_size,
         approval_quality,
+        normalized_reference_hash,
     )
     adapter_id = (
         config["provider"]
@@ -728,19 +779,28 @@ def generate_approved_image(
         else "custom"
     )
     adapter = get_adapter(adapter_id)
-    request = adapter.build_request(
-        config,
-        approved_prompt,
-        resolved_size,
-        approval_quality,
-    )
+    if config["provider"] == "seedream":
+        request = adapter.build_request(
+            config,
+            approved_prompt,
+            resolved_size,
+            approval_quality,
+            reference_data_urls,
+        )
+    else:
+        request = adapter.build_request(
+            config,
+            approved_prompt,
+            resolved_size,
+            approval_quality,
+        )
     output_dir_fd = None
     try:
         if resolved_output_dir is not None and allowed_output_root is not None:
             output_dir_fd = _open_bounded_output_directory(
                 resolved_output_dir,
                 allowed_output_root,
-                Path(skill_root),
+                Path(allowed_output_root).expanduser().parent,
             )
         response_json = request_generation(config, request, adapter)
         try:
@@ -806,6 +866,17 @@ def parse_args() -> argparse.Namespace:
         default="hd",
         choices=["standard", "hd", "low", "medium", "high", "auto"],
     )
+    parser.add_argument(
+        "--reference-image",
+        type=Path,
+        default=None,
+        help="官网产品参考图；Seedream 产品生图必须提供",
+    )
+    parser.add_argument(
+        "--reference-image-sha256",
+        default=None,
+        help="官网产品参考图 SHA-256；必须与批准哈希使用的值一致",
+    )
     return parser.parse_args()
 
 
@@ -821,6 +892,8 @@ def main() -> int:
             args.approval_hash,
             args.size,
             args.quality,
+            reference_image_path=args.reference_image,
+            reference_image_sha256=args.reference_image_sha256,
         )
     except Exception as exc:
         print(str(exc), file=sys.stderr)

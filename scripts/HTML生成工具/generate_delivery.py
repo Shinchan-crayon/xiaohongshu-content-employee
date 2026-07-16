@@ -7,12 +7,14 @@ import argparse
 import html
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
 REQUIRED_SECTIONS = (
+    "content_digest",
     "project",
     "evidence",
     "topics",
@@ -22,9 +24,7 @@ REQUIRED_SECTIONS = (
     "cover",
     "carousel",
     "images",
-    "review",
 )
-APPROVED_REVIEW_STATUSES = {"PASS", "PASS_WITH_NOTES"}
 PROVIDER_NAMES = {
     "thinkai-image-2": "ThinkAI Image 2",
     "thinkai-nano": "ThinkAI Nano",
@@ -96,14 +96,11 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
 
     require_mapping(root["cover"], "cover")
 
-    review = require_mapping(root["review"], "review")
-    review_status = review.get("status")
-    if review_status not in APPROVED_REVIEW_STATUSES:
-        raise DeliveryError(
-            "review status must be PASS or PASS_WITH_NOTES"
-        )
-
-    require_mapping_items(review.get("checks", []), "review.checks")
+    content_digest = root.get("content_digest")
+    if not isinstance(content_digest, str) or not re.fullmatch(
+        r"[0-9a-f]{64}", content_digest
+    ):
+        raise DeliveryError("content_digest must be a lowercase SHA-256 digest")
 
     images = require_mapping_items(root["images"], "images")
     image_ids = set()
@@ -125,9 +122,17 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
                 raise DeliveryError(f"images[{index}] ai_generated requires provider")
             if not model:
                 raise DeliveryError(f"images[{index}] ai_generated requires model")
-            if image.get("width") != 1080 or image.get("height") != 1440:
+            width = image.get("width")
+            height = image.get("height")
+            if (
+                not isinstance(width, int)
+                or not isinstance(height, int)
+                or width <= 0
+                or height <= 0
+                or width * 4 != height * 3
+            ):
                 raise DeliveryError(
-                    f"images[{index}] ai_generated must be 1080x1440"
+                    f"images[{index}] ai_generated must use a 3:4 portrait ratio"
                 )
 
     for index, page in enumerate(require_mapping_items(root["carousel"], "carousel")):
@@ -502,29 +507,10 @@ def render_evidence(evidence: Iterable[Dict[str, Any]]) -> str:
     return "".join(items)
 
 
-def render_review(review: Dict[str, Any]) -> str:
-    rows = []
-    for check in require_list(review.get("checks", []), "review.checks"):
-        rows.append(
-            "<tr>"
-            f"<td>{escape(check.get('name'))}</td>"
-            f'<td class="{status_class(check.get("status"))}">{escape(check.get("status"))}</td>'
-            f"<td>{escape(check.get('notes') or check.get('findings'))}</td>"
-            "</tr>"
-        )
-    return (
-        '<table class="review-table">'
-        "<thead><tr><th>检查项</th><th>状态</th><th>说明</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody>"
-        "</table>"
-    )
-
-
 def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) -> str:
     project = require_mapping(payload["project"], "project")
     post = require_mapping(payload["post"], "post")
     cover = require_mapping(payload["cover"], "cover")
-    review = require_mapping(payload["review"], "review")
     images = require_list(payload["images"], "images")
     images_by_id = {str(item["id"]): item for item in images}
     cover_content = (
@@ -554,7 +540,7 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
         <h1>{escape(project.get("name"))}</h1>
         <div class="meta">{escape(project.get("goal"))} · {escape(project.get("generated_at"))}</div>
       </div>
-      <div class="status {status_class(review.get("status"))}">{escape(review.get("status"))}</div>
+      <div class="status status-pass">READY</div>
     </header>
     <div class="publish-workspace">
       <div class="editor-pane">
@@ -592,7 +578,6 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
         <section class="section details-wide"><h2>轮播图逐页脚本</h2><div class="carousel">{render_carousel(payload["carousel"], images_by_id)}</div></section>
         <section class="section"><h2>图片使用方案</h2><div class="stack">{render_images(images, source_dir, output_dir)}</div></section>
         <section class="section"><h2>证据台账</h2><div class="stack">{render_evidence(payload["evidence"])}</div></section>
-        <section class="section details-wide"><h2>内容审核结果</h2>{render_review(review)}</section>
       </div>
     </details>
   </main>
