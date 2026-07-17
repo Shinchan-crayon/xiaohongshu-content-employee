@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.8.2",
-  "description": "官网参考图生图、全量并发、失败页重试和快速 HTML 交付的小红书内容工作流。",
+  "version": "1.8.3",
+  "description": "有限子 Agent 并行调研、官网参考图生图、全量并发和快速 HTML 交付的小红书内容工作流。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"
@@ -10,18 +10,19 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "小红书内容员工",
-    "shortDescription": "参考图生图、全量并发的小红书图文工作流",
-    "longDescription": "首次使用设置图片渠道，后续自动复用；使用官网产品参考图和简洁 Prompt 一次并发生成全部页面，失败页最多重试三次，直接输出模型原图和 HTML。",
+    "shortDescription": "并行调研、参考图生图和快速 HTML 交付",
+    "longDescription": "首次使用设置图片渠道，后续自动复用；由主 Agent 有界并行处理独立调研任务，再使用官网产品参考图和简洁 Prompt 一次并发生成全部页面，直接输出模型原图和 HTML。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [
       "Content generation",
+      "Parallel research",
       "Image generation",
       "HTML delivery",
       "Personalized learning"
     ],
     "defaultPrompt": [
-      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；首次使用设置图片模式和生图模型后自动继续。",
+      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；首次使用设置图片模式和生图模型，可用时由主 Agent 调度最多三个子 Agent 并行调研。",
       "使用官网产品参考图和简洁 Prompt 生成小红书成品图，把视觉创意交给模型自由发挥。",
       "沿用已保存的图片设置，一次并发生成全部页面，失败页最多重试三次并输出 HTML。"
     ],
