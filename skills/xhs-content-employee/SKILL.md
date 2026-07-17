@@ -161,13 +161,25 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 
 ### 5. deliver
 
-- 调用 `$xhs-html-delivery`，全流程只在这里执行一次最终技术校验：字段、摘要、资源、3:4 比例和页码映射。
+- 调用 `$xhs-html-delivery` 生成 `delivery.json` 和 HTML；生成脚本自带的本地输入校验属于生成动作，不得在生成后重复运行。
+- HTML 写入后只做可用性门禁：HTML 文件存在且非空，交付页引用的图片文件存在。
+- 可用性门禁通过后，必须立即向用户发送绝对 HTML 路径，并明确说明“HTML 已生成，可先查看；我只做一次轻量收尾检查。”不得等到状态、Schema、敏感信息或 Git 检查结束后再交付。
+- 路径发出后最多执行一次轻量收尾检查，只核对交付路径与 `workflow-state.json` 记录一致；随后立即进入 `completed`。
 - 不运行内容审核，不请求内容确认。
-- 缺文件或映射错误时留在 `deliver / BLOCKED` 修复。
+- HTML 为空或引用图片缺失时留在 `deliver / BLOCKED` 修复；已经发出的 HTML 不因非阻断警告被撤回或延迟。
 
 ### 6. completed
 
-- 状态协议、资源和 HTML 均有效后写入 `COMPLETED`。
+- 轻量收尾检查结束后写入 `COMPLETED` 并立即停止执行，不继续做发布、仓库或环境检查。
+
+## Delivery-First Guardrails
+
+- 禁止在内容交付任务中打开浏览器、调用 Playwright 或执行视觉验收，除非用户明确要求测试页面显示效果。
+- 禁止为了交付后检查安装 Python、Node 或浏览器依赖。
+- 可选校验器缺失时记录为 `skipped`，不得寻找替代校验器、补装依赖或启动降级验证链。
+- 禁止在 HTML 路径发出后重复执行 Schema 校验、敏感信息扫描、资源扫描或 Git 检查。
+- 发布验证、commit、push、Marketplace 同步和插件安装只在用户明确要求时执行，不属于内容交付流程。
+- 任何轻量收尾警告都不得阻止用户先查看已生成且可用的 HTML。
 
 ## Confirmation Budget
 
@@ -180,7 +192,7 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 
 来源列表、自动选题、图片规划、Prompt 和 HTML 不单独等待确认。
 
-付费请求前的批次授权、Prompt 完整性和参考图哈希校验属于一次性执行门禁，不是内容自检；通过后不在每张图片上重复校验。除 `deliver` 的一次最终技术校验外，不执行中间或生成后自检。
+付费请求前的批次授权、Prompt 完整性和参考图哈希校验属于一次性执行门禁，不是内容自检；通过后不在每张图片上重复校验。`deliver` 只允许一次可用性门禁和路径发出后最多一次轻量收尾检查，不执行其他中间或生成后自检。
 
 ## Recovery Rules
 

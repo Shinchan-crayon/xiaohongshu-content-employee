@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书内容员工"
-  short_description: "并行调研、参考图生图和快速 HTML 交付"
-  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；可用时由主 Agent 调度有限子 Agent 并行调研，汇总后自动继续生图和 HTML 交付。"
+  short_description: "并行调研、参考图生图和交付优先的 HTML 输出"
+  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；生成 HTML 后立即先把路径交给用户，再做最多一次轻量收尾检查。"
 policy:
   allow_implicit_invocation: true
