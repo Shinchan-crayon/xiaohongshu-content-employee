@@ -762,8 +762,6 @@ def generate_approved_image(
             f"data:{mime_type};base64,"
             + base64.b64encode(reference_bytes).decode("ascii")
         ]
-    if config["provider"] == "seedream" and not reference_data_urls:
-        raise GenerationError("Seedream 产品生图必须绑定官网产品参考图。")
     approved_prompt = validate_approval(
         prompt,
         approval_hash,
@@ -870,7 +868,7 @@ def parse_args() -> argparse.Namespace:
         "--reference-image",
         type=Path,
         default=None,
-        help="官网产品参考图；Seedream 产品生图必须提供",
+        help="官网产品参考图；批量工作流仅首图提供",
     )
     parser.add_argument(
         "--reference-image-sha256",

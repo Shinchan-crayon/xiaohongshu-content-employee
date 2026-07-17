@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument(
         "--reference-image-sha256",
         default="",
-        help="官网产品参考图 SHA-256；Seedream 产品生图必须提供",
+        help="官网产品参考图 SHA-256；批量工作流仅首图提供",
     )
     parser.add_argument("--prompt", required=True, help="已展示给用户的精确 Prompt")
     parser.add_argument(

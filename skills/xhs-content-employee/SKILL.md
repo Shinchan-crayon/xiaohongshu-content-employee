@@ -117,8 +117,10 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 - 自动选择最合适的选题，除非用户明确要求确认。
 - 调用 `$xhs-copy-storyboard` 生成标题、正文、标签和最小必要页数的轮播。
 - 调用 `$xhs-visual-planner` 生成每页短 Prompt。
-- Prompt 只保留页面目标、产品名称、官网参考图约束、必须出现的中文文字和字体气质；构图、场景、光线、道具和视觉创意交给图片模型自由发挥。
-- AI 模式必须给每个产品页绑定 `reference_image_path` 和 `reference_image_sha256`。
+- 首图 Prompt 前置“参考图片主体为{品牌和产品}，参考官网图片，其余构图和场景自由发挥”，并绑定官网参考图；第二页起不再写参考图约束。
+- 构图、场景、光线、道具和视觉创意交给图片模型自由发挥。
+- 同一批次内每条 Prompt 必须不同；100% 完全相同的 Prompt 不得进入付费生图。
+- AI 模式只给首图绑定 `reference_image_path` 和 `reference_image_sha256`，第二页起两个字段必须为空。
 - 对完整语义内容计算小写 SHA-256 `content_digest`。本流程不运行文案风险、质量、自然化或 AI 特征检测。
 
 ### 4. produce
@@ -128,7 +130,7 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 - 每页失败后只重试该页，最多三次；成功页面不重试。
 - 三次仍失败时停止该页并向用户返回准确页码和最后错误。
 - 模型原图直接作为成品，不运行代码加字、裁切、抠图、产品叠加或图片合成。
-- 删除高度相似的冗余图片，并同步从轮播和图片清单中移除，不要求固定图片数量。
+- 不执行生成后图片相似度自检、删除或重生成。
 - 明显但轻微的伪品牌文字或局部乱码不阻断交付。
 
 ### 5. deliver
@@ -155,7 +157,7 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 ## Recovery Rules
 
 - 恢复时先验证状态文件。
-- 图片批次恢复时跳过 `complete` 和 `omitted_similar` 页面。
+- 图片批次恢复时跳过 `complete` 页面。
 - `failed` 页面仅在总尝试次数少于三次时继续。
 - Prompt、渠道、模型、尺寸、质量或参考图哈希变化会使旧批次批准失效。
 - 图片渠道不可用时，只有用户明确选择后才能切换模式或渠道。

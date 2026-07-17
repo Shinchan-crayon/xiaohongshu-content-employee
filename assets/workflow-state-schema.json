@@ -495,8 +495,7 @@
             "generating",
             "complete",
             "blocked",
-            "uncertain",
-            "omitted_similar"
+            "uncertain"
           ]
         },
         "batch_digest": {

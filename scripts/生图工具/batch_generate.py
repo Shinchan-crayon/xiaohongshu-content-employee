@@ -32,7 +32,7 @@ DEFAULT_MAX_WORKERS = 0
 MAX_ATTEMPTS = 3
 STATE_FILENAME = "generation-state.json"
 ITEM_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-FINAL_STATUSES = {"complete", "omitted_similar"}
+FINAL_STATUSES = {"complete"}
 
 
 class BatchGenerationError(RuntimeError):
@@ -86,6 +86,7 @@ def _normalized_batch(batch: dict) -> dict:
     items = []
     seen_ids = set()
     seen_pages = set()
+    seen_prompts = {}
     for raw in raw_items:
         if not isinstance(raw, dict):
             raise ValueError("图片项目必须是对象。")
@@ -132,14 +133,34 @@ def _normalized_batch(batch: dict) -> dict:
         )
         if any(not normalized[field] for field in required):
             raise ValueError(f"图片项目执行条件不完整：{item_id}")
-        if normalized["provider"] == "seedream" and (
-            not normalized["reference_image_path"]
-            or not re.fullmatch(r"[0-9a-f]{64}", normalized["reference_image_sha256"])
-        ):
-            raise ValueError(f"Seedream 图片项目必须绑定官网参考图及哈希：{item_id}")
+        duplicate = seen_prompts.get(normalized["prompt"])
+        if duplicate is not None:
+            raise ValueError(
+                "批次内 Prompt 不能完全相同："
+                f"第 {duplicate['page']} 页（{duplicate['id']}）与"
+                f"第 {page} 页（{item_id}）"
+            )
+        seen_prompts[normalized["prompt"]] = {
+            "id": item_id,
+            "page": page,
+        }
         items.append(normalized)
 
     items.sort(key=lambda item: item["page"])
+    first_item = items[0]
+    if first_item["provider"] == "seedream" and (
+        not first_item["reference_image_path"]
+        or not re.fullmatch(
+            r"[0-9a-f]{64}",
+            first_item["reference_image_sha256"],
+        )
+    ):
+        raise ValueError("Seedream 首图必须绑定官网参考图及哈希。")
+    for item in items[1:]:
+        if item["reference_image_path"] or item["reference_image_sha256"]:
+            raise ValueError(
+                f"仅首图允许绑定官网参考图：第 {item['page']} 页（{item['id']}）"
+            )
     return {"schema_version": 1, "items": items}
 
 
@@ -158,7 +179,6 @@ def create_batch_state(batch: dict) -> dict:
                 "errors": [],
                 "result": None,
                 "final_path": None,
-                "duplicate_of": None,
                 "error": None,
             }
             for item in normalized["items"]
@@ -190,7 +210,6 @@ def _load_or_create_state(output_root: Path, batch: dict) -> dict:
     for item in state_items:
         item.setdefault("attempts", 0)
         item.setdefault("errors", [])
-        item.setdefault("duplicate_of", None)
         if item.get("generation_status") in {"sending", "uncertain"}:
             item["generation_status"] = "pending"
     return state
@@ -322,58 +341,6 @@ def _copy_model_output(item: dict, result: dict, output_root: Path) -> Path:
     return destination
 
 
-def _image_fingerprint(path: Path) -> tuple[int, ...] | None:
-    try:
-        from PIL import Image
-
-        with Image.open(path) as image:
-            pixels = list(image.convert("L").resize((16, 16)).getdata())
-        average = sum(pixels) / len(pixels)
-        return tuple(1 if pixel >= average else 0 for pixel in pixels)
-    except Exception:
-        return None
-
-
-def _is_near_duplicate(left: Path, right: Path) -> bool:
-    if hashlib.sha256(left.read_bytes()).digest() == hashlib.sha256(
-        right.read_bytes()
-    ).digest():
-        return True
-    left_hash = _image_fingerprint(left)
-    right_hash = _image_fingerprint(right)
-    if left_hash is None or right_hash is None:
-        return False
-    distance = sum(a != b for a, b in zip(left_hash, right_hash))
-    return distance <= 12
-
-
-def _remove_similar_images(output_root: Path, state: dict) -> None:
-    kept: list[dict] = []
-    for item in state["items"]:
-        if item["generation_status"] != "complete" or not item.get("final_path"):
-            continue
-        current = output_root / item["final_path"]
-        duplicate = next(
-            (
-                other
-                for other in kept
-                if _is_near_duplicate(
-                    current,
-                    output_root / str(other["final_path"]),
-                )
-            ),
-            None,
-        )
-        if duplicate is None:
-            kept.append(item)
-            continue
-        current.unlink(missing_ok=True)
-        item["generation_status"] = "omitted_similar"
-        item["duplicate_of"] = duplicate["id"]
-        item["final_path"] = None
-        item["error"] = None
-
-
 def batch_generate(
     skill_root: Path,
     batch: dict,
@@ -403,7 +370,6 @@ def batch_generate(
             and int(state_by_id[item["id"]].get("attempts", 0)) < MAX_ATTEMPTS
         ]
         if not pending:
-            _remove_similar_images(output_root, state)
             failed = [
                 item for item in state["items"]
                 if item["generation_status"] not in FINAL_STATUSES
@@ -498,7 +464,6 @@ def batch_generate(
                         state_item["error"] = None
                     _save_state(output_root, state)
 
-        _remove_similar_images(output_root, state)
         failed = [
             item for item in state["items"]
             if item["generation_status"] not in FINAL_STATUSES

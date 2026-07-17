@@ -29,18 +29,17 @@ reference_image_path: string
 reference_image_sha256: string
 ```
 
-Seedream 产品生图必须绑定官网参考图。参考图哈希属于批准摘要的一部分。
+Seedream 批次仅首图绑定官网参考图。首图参考图哈希属于批准摘要的一部分，第二页起两个参考图字段必须为空。
 
 ## Output Contract
 
 ```yaml
 generated_images:
   - page: integer
-    generation_status: complete | omitted_similar | failed
+    generation_status: complete | failed
     attempts: integer
     source_path: path | null
     final_path: path | null
-    duplicate_of: string | null
     error: string | null
 generation_status: complete | blocked
 generation_state_json: path
@@ -50,14 +49,16 @@ failed_pages: [object]
 ## Execution Rules
 
 1. 付费请求前校验整批批准、渠道、模型、尺寸、质量、Prompt 和参考图哈希。
-2. 默认一次并发提交全部待生成页面，没有 3 页或 8 页上限。`max_workers: 0` 表示全部并发。
-3. 每页独立执行，失败或结果不确定时只重试该页，最多三次。
-4. 成功页面不重试。恢复时继续未满三次的失败页。
-5. 三次仍失败时记录准确页码、尝试次数和最后错误，并反馈给用户。
-6. 模型返回的 PNG、JPEG 或 WebP 原字节直接复制到 `final/`。
-7. 禁止代码加字、裁切、抠图、产品叠加、背景替换和图片合成。
-8. 生成后删除高度相似的冗余图片，标记为 `omitted_similar`。
-9. 轻微伪品牌文字或局部乱码允许交付。
+2. 同一批次的 Prompt 不能完全相同；发现重复时整批停止，不发送任何付费请求。
+3. 仅首图允许绑定官网参考图；第二页起不得传参考图。
+4. 默认一次并发提交全部待生成页面，没有 3 页或 8 页上限。`max_workers: 0` 表示全部并发。
+5. 每页独立执行，失败或结果不确定时只重试该页，最多三次。
+6. 成功页面不重试。恢复时继续未满三次的失败页。
+7. 三次仍失败时记录准确页码、尝试次数和最后错误，并反馈给用户。
+8. 模型返回的 PNG、JPEG 或 WebP 原字节直接复制到 `final/`。
+9. 禁止代码加字、裁切、抠图、产品叠加、背景替换和图片合成。
+10. 不执行生成后图片相似度自检、删除或重生成。
+11. 轻微伪品牌文字或局部乱码允许交付。
 
 ## Runtime Command
 

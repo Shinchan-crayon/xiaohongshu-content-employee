@@ -39,7 +39,6 @@ python3 ../../scripts/HTML生成工具/generate_delivery.py INPUT.json OUTPUT.ht
 - AI 图片记录 `source_type`、`provider`、`model`、`width` 和 `height`。
 - AI 图片为原生 3:4 竖图，不强制 1080x1440。
 - 轮播页码与图片 ID 对应。
-- `omitted_similar` 图片已经从交付图片和轮播列表移除。
 - 交付 JSON 不含敏感配置。
 
 不运行文案风险、质量、自然化、AI 特征或品牌乱码检测。
