@@ -164,8 +164,7 @@ def _normalized_batch(batch: dict) -> dict:
     return {"schema_version": 1, "items": items}
 
 
-def create_batch_state(batch: dict) -> dict:
-    normalized = _normalized_batch(batch)
+def _create_batch_state_from_normalized(normalized: dict) -> dict:
     return {
         "schema_version": 1,
         "batch_digest": _canonical_hash(normalized),
@@ -186,9 +185,13 @@ def create_batch_state(batch: dict) -> dict:
     }
 
 
-def _load_or_create_state(output_root: Path, batch: dict) -> dict:
+def create_batch_state(batch: dict) -> dict:
+    return _create_batch_state_from_normalized(_normalized_batch(batch))
+
+
+def _load_or_create_state(output_root: Path, normalized: dict) -> dict:
     state_path = output_root / STATE_FILENAME
-    expected = create_batch_state(batch)
+    expected = _create_batch_state_from_normalized(normalized)
     if not state_path.exists():
         _atomic_write_json(state_path, expected)
         return expected
@@ -263,11 +266,10 @@ def _validate_reference(item: dict) -> None:
 
 def _validate_approvals(
     skill_root: Path,
-    batch: dict,
+    normalized: dict,
     config_loader: Callable,
     preflight: Callable,
 ) -> list[dict]:
-    normalized = _normalized_batch(batch)
     runtime_by_provider = {}
     prepared = []
     for item in normalized["items"]:
@@ -355,13 +357,14 @@ def batch_generate(
     output_root = _validate_output_root(skill_root, Path(output_root))
     lock_descriptor = _acquire_lock(output_root)
     try:
+        normalized = _normalized_batch(batch)
         prepared_items = _validate_approvals(
             skill_root,
-            batch,
+            normalized,
             config_loader,
             preflight,
         )
-        state = _load_or_create_state(output_root, batch)
+        state = _load_or_create_state(output_root, normalized)
         state_by_id = {item["id"]: item for item in state["items"]}
         pending = [
             item
@@ -422,6 +425,7 @@ def batch_generate(
                         reference_image_sha256=(
                             item["reference_image_sha256"] or None
                         ),
+                        approval_prevalidated=True,
                     )
                     final_path = _copy_model_output(item, raw_result, output_root)
                     return _relative_result(output_root, raw_result), str(final_path)

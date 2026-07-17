@@ -109,7 +109,8 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 ### 2. evidence
 
 - 调用 `$xhs-research-strategy`。`user_links` 只读用户链接；`internal_search` 执行内部搜索。
-- 自动生成来源台账。核心事实没有来源或来源冲突时才阻断。
+- 自动生成来源台账并一次性锁定事实边界，不单独请求素材确认，不在后续阶段重复审核。
+- 核心事实没有来源或来源冲突时才阻断。
 - 证据就绪后直接进入 `compose`。
 
 ### 3. compose
@@ -135,7 +136,7 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 
 ### 5. deliver
 
-- 调用 `$xhs-html-delivery`，只校验字段、摘要、资源、3:4 比例和页码映射。
+- 调用 `$xhs-html-delivery`，全流程只在这里执行一次最终技术校验：字段、摘要、资源、3:4 比例和页码映射。
 - 不运行内容审核，不请求内容确认。
 - 缺文件或映射错误时留在 `deliver / BLOCKED` 修复。
 
@@ -153,6 +154,8 @@ python3 ../../scripts/生图工具/manage_image_setup.py status
 - 付费批量生图的一次批准。
 
 来源列表、自动选题、图片规划、Prompt 和 HTML 不单独等待确认。
+
+付费请求前的批次授权、Prompt 完整性和参考图哈希校验属于一次性执行门禁，不是内容自检；通过后不在每张图片上重复校验。除 `deliver` 的一次最终技术校验外，不执行中间或生成后自检。
 
 ## Recovery Rules
 

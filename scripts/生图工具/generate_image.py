@@ -725,8 +725,9 @@ def generate_approved_image(
     allowed_output_root: Optional[Path] = None,
     reference_image_path: Optional[Path] = None,
     reference_image_sha256: Optional[str] = None,
+    approval_prevalidated: bool = False,
 ) -> dict:
-    """执行一张已审核图片，供单图 CLI 和文章工作流共同复用。"""
+    """执行一张已批准图片，供单图 CLI 和批量文章工作流共同复用。"""
 
     resolved_output_dir = resolve_output_directory(
         output_dir,
@@ -762,15 +763,18 @@ def generate_approved_image(
             f"data:{mime_type};base64,"
             + base64.b64encode(reference_bytes).decode("ascii")
         ]
-    approved_prompt = validate_approval(
-        prompt,
-        approval_hash,
-        config["provider"],
-        config["model"],
-        resolved_size,
-        approval_quality,
-        normalized_reference_hash,
-    )
+    if approval_prevalidated:
+        approved_prompt = validate_prompt(prompt)
+    else:
+        approved_prompt = validate_approval(
+            prompt,
+            approval_hash,
+            config["provider"],
+            config["model"],
+            resolved_size,
+            approval_quality,
+            normalized_reference_hash,
+        )
     adapter_id = (
         config["provider"]
         if config["provider"] in FORMAL_PROVIDER_IDS
