@@ -1,134 +1,140 @@
-# 小红书内容员工
+<p align="center">
+  <img src="assets/plugin-icon.png" width="128" alt="小红书内容员工">
+</p>
 
-![小红书内容员工](assets/plugin-icon.png)
+<h1 align="center">小红书内容员工</h1>
 
-面向个人创作者的小红书图文工作流。一个仓库同时支持 Codex、Claude Code
-和 Hermes，共用同一套 Skill、知识库、生图工具与 HTML 交付模板。
+<p align="center">
+  把产品资料、事实来源、文案、配图和 HTML 交付串成一套可直接使用的小红书图文工作流。
+</p>
 
-当前版本：`1.9.0`
+<p align="center">
+  ThinkAI · Codex / Claude Code / Hermes · 当前版本 <code>1.9.0</code>
+</p>
 
-## 能做什么
+## 效果预览
 
-- 整理用户提供的产品资料、网页链接和图片素材。
-- 素材不足时按需调研，并建立事实来源台账。
-- 生成候选标题、正文、标签、封面文案和轮播脚本。
-- 选择已有图片或 AI 生图渠道，并发生成整组 3:4 图片。
-- 输出可编辑标题与正文、可切换图片和预览封面的独立 HTML。
-- 在用户同意时沉淀可复用的账号偏好和内容经验。
+最终交付不是一堆零散文本，而是一份可以直接打开、继续编辑的独立 HTML：
+上方整理图片，左侧编辑候选标题和正文，右侧同步预览笔记与封面。
 
-公开入口始终是 `xhs-content-employee`，其余六个 Skill 由入口按需调用。
+![小红书内容交付效果预览：Air Feel](assets/previews/delivery-preview-air-feel.png)
+
+![小红书内容交付效果预览：洗发水](assets/previews/delivery-preview-shampoo.png)
+
+## 直接开始
+
+把下面这段话和产品资料一起发给 Codex：
+
+```text
+请安装并使用“小红书内容员工”：
+https://github.com/Shinchan-crayon/xiaohongshu-content-employee
+
+根据我提供的产品资料制作一套小红书图文内容。
+```
+
+安装完成后，可在 Codex 的“插件 > 个人”中看到“小红书内容员工”的名称、
+Logo 和介绍。
+
+已经安装时，可以直接说：
+
+```text
+请使用 $xhs-content-employee，根据我提供的产品资料制作一套小红书图文内容。
+
+内容目标：
+产品或服务：
+产品图片或素材链接：
+已有文案：
+参考内容：
+目标用户：
+账号语气：
+```
+
+资料不完整也可以开始。插件会明确告诉你缺少什么，并让你选择：
+
+1. 使用你提供的网页、图片和产品资料。
+2. 调用可用的搜索能力补充公开素材和事实来源。
+
+## 你会得到什么
+
+- 经过分级的产品事实与来源记录
+- 可横向选择的候选标题
+- 可继续编辑的小红书正文和标签
+- 封面文案与最小必要轮播脚本
+- 已有图片方案，或经确认后生成的整组 3:4 配图
+- 可切换图片、编辑标题正文、预览笔记与封面的独立 HTML
+
+插件不会把没有来源的信息写成确定事实，也不会自动发布到小红书。
+
+## 图片怎么处理
+
+首次使用会引导选择图片方式：
+
+1. `existing_only`：只使用已有图片。
+2. `ai_assist`：选择可用的图片渠道、模型、尺寸和质量。
+
+后续任务会先展示本次沿用的图片设置。需要付费生图时，整组 Prompt 和设置
+确认后才会生成；全部页面一次并发提交，失败页单独重试，不重复消耗成功页。
+
+产品图可以绑定清晰的官方参考图。生成结果使用模型原图，不再通过 Python
+在纯色背景上排字，也不额外执行抠图、贴图或伪造产品界面。
+
+## 包含的能力
+
+- 产品素材整理与事实分级
+- 公开资料搜索与来源核查
+- 小红书选题、标题、正文、标签和轮播规划
+- 官方产品参考图约束与简洁生图 Prompt
+- 多图并发生成和失败页独立重试
+- 可编辑、可缩放、可独立打开的 HTML 交付
+- 保存用户明确表达的账号偏好，经确认后复用于后续内容
 
 ## 安装
 
 ### Codex
 
-把本仓库添加为 Marketplace，再安装插件：
+在 Codex 对话中发送仓库链接并要求安装，或使用命令行：
 
 ```bash
 codex plugin marketplace add Shinchan-crayon/xiaohongshu-content-employee --ref main
 codex plugin add xiaohongshu-content-employee@xiaohongshu-content-employee
 ```
 
-安装后可在 Codex 插件页面看到“小红书内容员工”的名称、Logo 和介绍。
-
 ### Claude Code
-
-把本仓库添加为 Marketplace，再安装插件：
 
 ```bash
 claude plugin marketplace add Shinchan-crayon/xiaohongshu-content-employee
 claude plugin install xiaohongshu-content-employee@xiaohongshu-content-employee
 ```
 
-未全局安装 Claude Code 时，可把命令中的 `claude` 换成
+没有全局安装 Claude Code 时，可把命令中的 `claude` 换成
 `npx -y @anthropic-ai/claude-code`。
 
 ### Hermes
 
-克隆仓库后运行通用安装器：
+克隆仓库后运行：
 
 ```bash
 python3 scripts/安装工具/install_skills.py --runtime hermes
 ```
 
-安装器会把七个 Skill 安装为自包含目录。已有同名 Skill 时不会覆盖；确认
-需要升级时追加 `--force`。
+安装器会安装同一套七个 Skill。已有同名 Skill 时默认不覆盖；确认升级时追加
+`--force`。
 
-### 自定义安装目录
+## 工作流程
 
-Codex 和 Hermes 都可以指定 Skill 目录：
+`整理输入 -> 核查事实 -> 生成文案与图片方案 -> 并发生成 -> HTML 交付`
 
-```bash
-python3 scripts/安装工具/install_skills.py --target PATH
-```
-
-## 使用
-
-在 Codex、Claude Code 或 Hermes 中直接说：
-
-```text
-请使用 xhs-content-employee，根据我提供的产品资料制作一套小红书图文内容。
-
-内容目标：介绍产品的核心使用场景
-产品或服务：填写产品名称和基本说明
-产品图片：填写图片文件或网页链接
-已有文案：填写原始资料
-参考内容：填写文件路径或网页地址
-目标用户：填写目标人群
-账号语气：填写表达偏好
-```
-
-首次使用会选择：
-
-1. `existing_only`：只使用已有图片。
-2. `ai_assist`：选择图片渠道、模型、尺寸和质量。
-
-后续任务会先提示本次沿用的图片设置。付费生图前保留一次整批批准。
-
-## 工作流
-
-`prepare -> evidence -> compose -> produce -> deliver -> completed`
-
-| 阶段 | 结果 |
-| --- | --- |
-| `prepare` | 整理输入、图片设置和任务状态 |
-| `evidence` | 汇总事实来源、受众洞察和内容方向 |
-| `compose` | 生成文案、轮播和生图 Prompt |
-| `produce` | 并发生成全部图片，失败页独立重试 |
-| `deliver` | 生成独立 HTML 并交付 |
-| `completed` | 保存最终结果并停止 |
-
-## Skill 组成
-
-| Skill | 作用 |
-| --- | --- |
-| `xhs-content-employee` | 唯一公开入口和流程状态管理 |
-| `product-material-intake` | 整理产品事实与素材 |
-| `xhs-research-strategy` | 建立来源台账和选题候选 |
-| `xhs-copy-storyboard` | 生成文案与最小必要轮播 |
-| `xhs-visual-planner` | 生成简洁、开放的参考图 Prompt |
-| `xhs-approved-image-generator` | 全量并发生成和失败页重试 |
-| `xhs-html-delivery` | 生成独立 HTML |
-
-## 图片规则
-
-- 首图可以绑定清晰的官方产品参考图。
-- 图片中的中文文字由图片模型直接生成，代码不在纯色背景上排字。
-- 默认一次并发全部待生成页面，没有固定页数上限。
-- 每页最多尝试三次，成功页不重复生成。
-- API Key、鉴权信息和本机配置路径不会进入状态文件或 HTML。
-
-## 输出
-
-- 产品材料和事实来源台账
-- 标题、正文、标签、封面文案和轮播脚本
-- 生图 Prompt、生成状态和模型原始图片
-- 可独立打开和编辑的 HTML
+公开入口始终是 `xhs-content-employee`。其余六个 Skill 在流程内部按需协作，
+用户不需要逐个调用。
 
 ## 能力边界
 
 - 不自动发布到小红书。
-- 不把没有来源的产品事实写成确定结论。
 - 不保存密码、访问令牌或 API Key。
-- 图片渠道不可用时不私自切换渠道或模式。
-- 已达到三次尝试的失败页不会继续付费重试。
+- 图片渠道不可用时，不会私自更换渠道或产生额外费用。
+- 达到重试上限的失败页会明确返回页码和错误。
+- 用户没有确认的外部内容规律，不会被当作长期偏好保存。
+
+## 开发者
+
+ThinkAI
