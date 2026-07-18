@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书 HTML 交付"
-  short_description: "一次最终检查后立即交付独立 HTML"
-  default_prompt: "使用 $xhs-html-delivery 生成独立 HTML；执行一次最终确定性检查，通过后立即把绝对路径交给用户并结束。"
+  short_description: "一次生成并立即交付独立 HTML"
+  default_prompt: "使用 $xhs-html-delivery 一次生成独立 HTML；命令成功后立即把绝对路径交给用户并结束，不追加检查链。"
 policy:
   allow_implicit_invocation: false

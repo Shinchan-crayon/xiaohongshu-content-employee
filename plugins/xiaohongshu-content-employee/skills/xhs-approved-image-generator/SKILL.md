@@ -1,6 +1,6 @@
 ---
 name: xhs-approved-image-generator
-description: 在 produce 阶段一次并发生成全部已批准页面，仅对安全瞬时错误重试一次，直接交付模型原图。
+description: 在 produce 阶段把整批 Prompt 直接并发发送给已授权渠道，图片返回后立即交给 HTML 生成，不做复审或验图。
 ---
 
 # Xiaohongshu Approved Image Generator
@@ -48,7 +48,7 @@ failed_pages: [object]
 
 ## Execution Rules
 
-1. 付费请求前校验整批批准、渠道、模型、尺寸、质量、Prompt 和参考图哈希。
+1. 用户已给出默认付费授权时，直接记录整批批准并在同一次命令中确定性处理渠道、模型、尺寸、质量、Prompt 和参考图哈希；不展示或复审 Prompt。
 2. 同一批次的 Prompt 不能完全相同；发现重复时整批停止，不发送任何付费请求。
 3. 仅首图允许绑定官网参考图；第二页起不得传参考图。
 4. 默认一次并发提交全部待生成页面，没有 3 页或 8 页上限。`max_workers: 0` 表示全部并发。
@@ -60,6 +60,7 @@ failed_pages: [object]
 10. 不执行生成后图片相似度自检、删除或重生成。
 11. 轻微伪品牌文字或局部乱码允许交付。
 12. 默认关闭请求与响应 JSON 快照；仅显式调试时允许在用户任务目录生成已脱敏快照，插件成品目录不得保存快照。
+13. 不打开生成图片，不执行视觉验收、内容安全审计或最终检查；整批返回后立即进入 HTML 生成。
 
 ## Runtime Command
 

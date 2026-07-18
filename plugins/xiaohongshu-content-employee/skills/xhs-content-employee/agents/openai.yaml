@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书内容员工"
-  short_description: "五分钟编排、并行生图和确定性 HTML 交付"
-  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；按材料复杂度决定是否并行调研，在一次最终确定性检查通过后立即交付 HTML。"
+  short_description: "五分钟编排、并发生图和 HTML 极速直出"
+  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；采用 direct_html，默认授权已配置渠道整批并发生图，图片返回后立即生成并交付 HTML，不展示或复审 Prompt，不启动子 Agent，不执行生成后检查。"
 policy:
   allow_implicit_invocation: true

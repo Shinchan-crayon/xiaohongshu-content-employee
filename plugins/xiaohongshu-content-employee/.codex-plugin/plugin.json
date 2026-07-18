@@ -10,8 +10,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "小红书内容员工",
-    "shortDescription": "并行调研、参考图生图和快速 HTML 交付",
-    "longDescription": "首次使用设置图片渠道，后续自动复用；由主 Agent 有界并行处理独立调研任务，再使用官网产品参考图和简洁 Prompt 一次并发生成全部页面，直接输出模型原图和 HTML。",
+    "shortDescription": "整批并发生图和 HTML 极速直出",
+    "longDescription": "首次使用设置图片渠道，后续自动复用；默认由主 Agent 直接完成必要事实检索和内容编排，整批 Prompt 直接并发发送给已授权渠道，图片返回后立即生成并交付 HTML，不追加复审或验收链。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [
@@ -22,9 +22,9 @@
       "Personalized learning"
     ],
     "defaultPrompt": [
-      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；首次使用设置图片模式和生图模型，可用时由主 Agent 调度最多三个子 Agent 并行调研。",
-      "使用官网产品参考图和简洁 Prompt 生成小红书成品图，把视觉创意交给模型自由发挥。",
-      "沿用已保存的图片设置，一次并发生成全部页面，失败页最多重试三次并输出 HTML。"
+      "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；采用 direct_html，图片返回后立即生成并交付 HTML。",
+      "沿用已保存的图片设置和付费授权，将整批 Prompt 直接并发发送给图片模型，不展示或复审 Prompt。",
+      "整批图片返回后立即输出 HTML，不启动子 Agent，不打开或验收图片，不执行浏览器、截图、安全审计或最终检查链。"
     ],
     "brandColor": "#FF4D6D",
     "composerIcon": "./assets/plugin-icon.png",
