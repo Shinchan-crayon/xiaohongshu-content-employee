@@ -1,14 +1,11 @@
 # 小红书内容员工
 
-面向个人创作者的小红书图文工作流。它把产品素材、事实来源、文案、配图和
-独立 HTML 交付串成一个可恢复的内容流程。
-
-当前版本：`1.9.0`
+面向个人创作者的小红书图文插件，当前版本：`2.0.0`。
 
 ## 使用
 
 ```text
-请使用 $xhs-content-employee，根据我提供的产品资料制作一套小红书图文内容。
+请使用 $xhs-content-employee，根据我提供的资料制作一套小红书图文内容。
 
 内容目标：
 产品或服务：
@@ -19,38 +16,42 @@
 账号语气：
 ```
 
-首次使用会引导选择：
+## 唯一执行流程
 
-1. `existing_only`：只使用已有图片。
-2. `ai_assist`：选择图片渠道、模型、尺寸和质量。
+`首次使用选择生图模型并保存 -> 选题已定 -> 一次生成文案和最终 Prompt -> Prompt 全批并发发送给所选模型 -> 图片返回 -> 立即生成 HTML -> 交付 HTML`
 
-## 核心流程
+选题确定后不再展示或复审 Prompt，不执行质检、安全审计、验图、截图、浏览器
+预览、状态台账、自动重试或中途确认。
 
-`prepare -> evidence -> compose -> produce -> deliver -> completed`
+## 首次选择生图模型
 
-- 整理用户提供的产品资料、网页和图片素材。
-- 素材不足时按需检索，并建立事实来源记录。
-- 生成候选标题、正文、标签、封面文案和轮播脚本。
-- 用户已授权时直接并发生成整组配图，不展示或复审 Prompt。
-- 图片返回后立即输出可编辑标题正文、切换图片和预览封面的独立 HTML。
+第一次使用时，插件会列出 ThinkAI Image 2、ThinkAI Nano、火山引擎
+Seedream、OpenAI GPT Image、Google Nano Banana 和自定义渠道，并同时显示
+具体模型与默认尺寸。用户选择并配置后保存为默认项，后续直接复用。
 
-默认采用 `direct_html` 极速直出：不启动子 Agent，不逐图确认，不执行生成后验图、浏览器预览、截图、安全审计或最终检查链。首次图片渠道配置、事实缺失冲突、未授权的付费生图和实际生成错误仍会暂停并说明原因。
+手动查看列表：
+
+```bash
+python3 scripts/生图工具/configure_provider.py --list
+```
+
+配置保存在 `config.json`，该文件不会进入仓库。
 
 ## Skill 组成
 
 | Skill | 作用 |
 | --- | --- |
-| `xhs-content-employee` | 唯一公开入口和流程状态管理 |
+| `xhs-content-employee` | 唯一公开入口和直接执行编排 |
 | `product-material-intake` | 整理产品事实与素材 |
-| `xhs-research-strategy` | 建立来源记录和选题候选 |
-| `xhs-copy-storyboard` | 生成文案与轮播 |
-| `xhs-visual-planner` | 生成参考图生图方案 |
-| `xhs-approved-image-generator` | 并发生成和失败页重试 |
-| `xhs-html-delivery` | 生成独立 HTML |
+| `xhs-research-strategy` | 补充必要公开信息并确定选题 |
+| `xhs-copy-storyboard` | 生成标题、正文、标签和轮播 |
+| `xhs-visual-planner` | 一次生成全部最终 Prompt |
+| `xhs-approved-image-generator` | 使用首次选择的模型全批并发生图 |
+| `xhs-html-delivery` | 图片返回后立即生成 HTML |
 
 ## 能力边界
 
 - 不自动发布到小红书。
-- 不把没有来源的产品事实写成确定结论。
-- 不保存密码、访问令牌或 API Key。
-- 图片渠道不可用时不私自切换渠道。
+- 不保存 API Key 到仓库。
+- 不自动切换模型或图片渠道。
+- 不为失败页面自动重试或补图。

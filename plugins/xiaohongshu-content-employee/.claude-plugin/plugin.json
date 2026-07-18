@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "xiaohongshu-content-employee",
-  "version": "1.9.0",
-  "description": "面向个人创作者的小红书图文工作流，支持素材整理、事实调研、文案与轮播、生图和独立 HTML 交付。",
+  "version": "2.0.0",
+  "description": "面向个人创作者的小红书图文工作流，首次选择生图模型后复用默认项，支持素材、文案、并发生图和独立 HTML 交付。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"

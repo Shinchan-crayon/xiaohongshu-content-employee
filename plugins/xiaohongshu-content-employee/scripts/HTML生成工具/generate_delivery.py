@@ -7,14 +7,12 @@ import argparse
 import html
 import json
 import os
-import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
 REQUIRED_SECTIONS = (
-    "content_digest",
     "project",
     "evidence",
     "topics",
@@ -25,29 +23,6 @@ REQUIRED_SECTIONS = (
     "carousel",
     "images",
 )
-ALLOWED_TOP_LEVEL_FIELDS = frozenset(REQUIRED_SECTIONS)
-SENSITIVE_KEY_PATTERN = re.compile(
-    r"(?i)(api[_-]?key|authorization|credential|password|secret|token|"
-    r"request|response|debug|trace|log|screenshot|test[_-]?report|"
-    r"development[_-]?plan)"
-)
-LOCAL_PATH_PATTERN = re.compile(
-    r"(?i)(?:^|[\s\"'])("
-    + re.escape("file:" + "//")
-    + "|"
-    + re.escape("~" + "/")
-    + r"|/(?:"
-    + "|".join(("Users", "home", "tmp", "var/folders"))
-    + r")/|[A-Z]:[\\/])"
-)
-PROVIDER_NAMES = {
-    "thinkai-image-2": "ThinkAI Image 2",
-    "thinkai-nano": "ThinkAI Nano",
-    "seedream": "火山引擎 Seedream",
-    "openai-gpt-image": "OpenAI GPT Image",
-    "google-nano-banana": "Google Nano Banana",
-    "custom": "其他渠道",
-}
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PACKAGE_ROOT = SCRIPT_DIR.parents[1]
@@ -82,48 +57,8 @@ def require_mapping_items(value: Any, name: str) -> List[Dict[str, Any]]:
     ]
 
 
-def find_sensitive_key(value: Any, path: tuple[str, ...] = ()) -> str | None:
-    if isinstance(value, dict):
-        for key, item in value.items():
-            normalized = str(key)
-            current = (*path, normalized)
-            if SENSITIVE_KEY_PATTERN.search(normalized):
-                return ".".join(current)
-            found = find_sensitive_key(item, current)
-            if found:
-                return found
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            found = find_sensitive_key(item, (*path, str(index)))
-            if found:
-                return found
-    return None
-
-
-def find_local_path(value: Any, path: tuple[str, ...] = ()) -> str | None:
-    if isinstance(value, dict):
-        for key, item in value.items():
-            found = find_local_path(item, (*path, str(key)))
-            if found:
-                return found
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            found = find_local_path(item, (*path, str(index)))
-            if found:
-                return found
-    elif isinstance(value, str) and LOCAL_PATH_PATTERN.search(value):
-        return ".".join(path)
-    return None
-
-
 def validate_payload(payload: Any, source_dir: Path) -> None:
     root = require_mapping(payload, "delivery payload")
-    unknown = sorted(set(root) - ALLOWED_TOP_LEVEL_FIELDS)
-    if unknown:
-        raise DeliveryError("unknown delivery fields: " + ", ".join(unknown))
-    sensitive_key = find_sensitive_key(root)
-    if sensitive_key:
-        raise DeliveryError(f"sensitive field is not allowed: {sensitive_key}")
     missing = [key for key in REQUIRED_SECTIONS if key not in root]
     if missing:
         raise DeliveryError(
@@ -151,12 +86,6 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
 
     require_mapping(root["cover"], "cover")
 
-    content_digest = root.get("content_digest")
-    if not isinstance(content_digest, str) or not re.fullmatch(
-        r"[0-9a-f]{64}", content_digest
-    ):
-        raise DeliveryError("content_digest must be a lowercase SHA-256 digest")
-
     images = require_mapping_items(root["images"], "images")
     image_ids = set()
     for index, image in enumerate(images):
@@ -178,46 +107,12 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
             )
         if not candidate.is_file():
             raise DeliveryError(f"missing image: {image_path}")
-        if image.get("source_type") == "ai_generated":
-            provider = str(image.get("provider") or "").strip()
-            model = str(image.get("model") or "").strip()
-            if not provider:
-                raise DeliveryError(f"images[{index}] ai_generated requires provider")
-            if not model:
-                raise DeliveryError(f"images[{index}] ai_generated requires model")
-            width = image.get("width")
-            height = image.get("height")
-            if (
-                not isinstance(width, int)
-                or not isinstance(height, int)
-                or width <= 0
-                or height <= 0
-                or width * 4 != height * 3
-            ):
-                raise DeliveryError(
-                    f"images[{index}] ai_generated must use a 3:4 portrait ratio"
-                )
-
     for index, page in enumerate(require_mapping_items(root["carousel"], "carousel")):
         image_id = str(page.get("image_id", "")).strip()
         if image_id and image_id not in image_ids:
             raise DeliveryError(
                 f"carousel[{index}] references unknown image id: {image_id}"
             )
-
-    local_path = find_local_path(root)
-    if local_path:
-        raise DeliveryError(f"local machine path is not allowed: {local_path}")
-
-
-def status_class(status: Any) -> str:
-    normalized = str(status or "").upper()
-    if normalized == "PASS":
-        return "status-pass"
-    if normalized in {"WARN", "PASS_WITH_NOTES"}:
-        return "status-warn"
-    return "status-fail"
-
 
 def render_copy_block(block_id: str, content: str) -> str:
     return (
@@ -535,15 +430,6 @@ def render_images(
     items = []
     for image in images:
         src = relative_image_src(image, source_dir, output_dir)
-        provider_detail = ""
-        if image.get("source_type") == "ai_generated":
-            provider_id = str(image.get("provider") or "")
-            provider_name = PROVIDER_NAMES.get(provider_id, provider_id)
-            provider_detail = (
-                f'<p class="muted">渠道：{escape(provider_name)} · '
-                f'模型：{escape(image.get("model"))} · '
-                f'{escape(image.get("width"))}×{escape(image.get("height"))}</p>'
-            )
         items.append(
             '<article class="item">'
             f"<h3>{escape(image.get('id'))}</h3>"
@@ -551,7 +437,6 @@ def render_images(
             f'alt="{escape(image.get("usage") or image.get("id"))}">'
             f"<p>{escape(image.get('usage'))}</p>"
             f'<p class="muted">来源：{escape(image.get("source"))}</p>'
-            f"{provider_detail}"
             '<div class="actions">'
             f'<a class="image-link" href="{escape(src)}" target="_blank" rel="noopener">预览</a>'
             f'<a class="image-link" href="{escape(src)}" download>下载</a>'
@@ -607,7 +492,6 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
         <h1>{escape(project.get("name"))}</h1>
         <div class="meta">{escape(project.get("goal"))} · {escape(project.get("generated_at"))}</div>
       </div>
-      <div class="status status-pass">READY</div>
     </header>
     <div class="publish-workspace">
       <div class="editor-pane">
@@ -644,7 +528,7 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
         <section class="section"><h2>封面文案</h2>{render_copy_block("cover-copy", cover_content)}</section>
         <section class="section details-wide"><h2>轮播图逐页脚本</h2><div class="carousel">{render_carousel(payload["carousel"], images_by_id)}</div></section>
         <section class="section"><h2>图片使用方案</h2><div class="stack">{render_images(images, source_dir, output_dir)}</div></section>
-        <section class="section"><h2>证据台账</h2><div class="stack">{render_evidence(payload["evidence"])}</div></section>
+        <section class="section"><h2>参考来源</h2><div class="stack">{render_evidence(payload["evidence"])}</div></section>
       </div>
     </details>
   </main>

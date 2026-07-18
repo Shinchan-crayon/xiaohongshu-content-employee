@@ -1,6 +1,6 @@
 interface:
-  display_name: "小红书已批准生图"
-  short_description: "全量并发直出模型原图"
-  default_prompt: "使用 $xhs-approved-image-generator 将整批 Prompt 直接并发发送给已授权渠道；图片返回后立即进入 HTML 生成，不复审 Prompt，不打开或验收图片。"
+  display_name: "小红书多模型并发生图"
+  short_description: "最终 Prompt 直接全批并发发送给已选择模型"
+  default_prompt: "使用 $xhs-approved-image-generator 将整批最终 Prompt 直接并发发送给首次使用时已保存的默认生图模型；图片返回后立即进入 HTML 生成，不复审 Prompt，不打开或验收图片。"
 policy:
   allow_implicit_invocation: false

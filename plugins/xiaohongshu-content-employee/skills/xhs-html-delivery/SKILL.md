@@ -1,72 +1,44 @@
 ---
 name: xhs-html-delivery
-description: 在 deliver 阶段一次生成可复制、预览和下载图片的独立 HTML，命令成功后立即交付，不追加检查链。
+description: 图片返回后立即生成可编辑、可预览和可下载图片的独立 HTML，并直接交付给用户。
 ---
 
 # Xiaohongshu HTML Delivery
 
-## Input Contract
+## 输入
 
-UTF-8 JSON 文件，字段遵循 `../../assets/delivery-schema.json`：
+使用临时 UTF-8 JSON 作为生成器输入，字段遵循
+`../../assets/delivery-schema.json`。临时 JSON 不属于交付物，HTML 生成后立即删除。
 
-```yaml
-content_digest: string
-image_runtime:
-  mode: existing_only | ai_assist
-generated_images: [object] | null
-```
-
-## Output Contract
+## 输出
 
 ```yaml
-delivery_json: path
 delivery_html: path
-asset_check:
-  status: PASS | FAIL
-  missing: [path]
 ```
 
-## Execution
+## 执行
 
 ```bash
-python3 ../../scripts/HTML生成工具/generate_delivery.py INPUT.json OUTPUT.html
+python3 ../../scripts/HTML生成工具/generate_delivery.py \
+  "<TEMP_INPUT_JSON>" \
+  "<OUTPUT_HTML>"
 ```
 
-生成脚本在同一次本地执行中校验：
+规则：
 
-- `content_digest` 格式有效。
-- 所有图片存在。
-- AI 图片记录 `source_type`、`provider`、`model`、`width` 和 `height`。
-- AI 图片为原生 3:4 竖图，不强制 1080x1440。
-- 轮播页码与图片 ID 对应。
-- 交付 JSON 不含敏感配置。
+1. 图片批次返回后立即运行一次 HTML 生成命令。
+2. 使用全部已返回图片；部分页面失败时不等待、不重试、不补图。
+3. 命令成功后立即把 HTML 文件发送给用户。
+4. 删除临时输入 JSON，结束任务。
+5. 不打开 HTML，不打开图片，不运行浏览器，不调用 Playwright，不截图。
+6. 不做文案质检、安全审计、图片验收、Schema 复审或最终检查。
+7. 不写状态文件、检查报告、调试日志或交付台账。
 
-不运行文案风险、质量、自然化、AI 特征或品牌乱码检测。
+HTML 生成器为完成页面生成所做的字段读取和文件写入属于生成动作，不得再扩展为独立检查步骤。
 
-## Final Delivery Contract
+## 失败
 
-严格按以下顺序执行：
-
-1. 写入 `delivery.json`，运行一次生成脚本并生成 HTML。
-2. 生成命令返回成功后，立即向用户发送绝对 HTML 路径，并将状态写为 `completed`。
-3. 交付后立即结束，不再启动检查、安装、发布或环境诊断。
-
-生成脚本内置输入与资源校验，这是生成动作本身，不是独立审查步骤。命令成功后不得追加文件存在性复查、路径复查、完整状态校验、二次 Schema 校验、额外敏感信息扫描、资源扫描、Git 检查或发布检查。
-
-## Inspection Limits
-
-- 不打开生成图片，不打开浏览器，不调用 Playwright，不截图，不执行视觉验收；用户明确要求页面显示测试时除外。
-- 不复审 Prompt，不执行文案终审、内容安全审计或最终检查清单。
-- 不安装任何依赖，不因可选校验器缺失而寻找替代工具或执行降级验证链。
-- 不调用任何可选校验器；生成命令成功即交付。
-- 不执行 commit、push、Marketplace 同步或插件安装，除非用户明确提出这些操作。
-
-## Failure Rules
-
-- 生成脚本返回失败：留在 `deliver / BLOCKED`，反馈脚本返回的实际错误。
-- 生成脚本已经成功时，非阻断警告不得撤回交付、延迟通知或触发额外检查。
-- 不在本阶段润色、改标题、改文案或加工图片。
-- 图片服务不可用时不自动切换模式或渠道。
+生成命令失败时只返回实际错误，不启动替代生成器、诊断链或复审流程。
 
 ## Required References
 

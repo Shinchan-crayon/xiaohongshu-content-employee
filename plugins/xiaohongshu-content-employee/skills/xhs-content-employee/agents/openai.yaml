@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书内容员工"
-  short_description: "五分钟编排、并发生图和 HTML 极速直出"
-  default_prompt: "使用 $xhs-content-employee 完成这批产品的小红书内容；采用 direct_html，默认授权已配置渠道整批并发生图，图片返回后立即生成并交付 HTML，不展示或复审 Prompt，不启动子 Agent，不执行生成后检查。"
+  short_description: "首次选模型，选题后并发生图并立即交付 HTML"
+  default_prompt: "使用 $xhs-content-employee 完成这批小红书内容；首次使用先列出全部生图渠道和具体模型供我选择并保存，之后选题确定后直接把全部最终 Prompt 并发发送给已保存模型，图片返回后立即生成并交付 HTML，不展示或复审 Prompt，不启动子 Agent，不执行生成后检查。"
 policy:
   allow_implicit_invocation: true

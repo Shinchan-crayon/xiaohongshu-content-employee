@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.9.0",
-  "description": "跨 Codex、Claude Code 和 Hermes 使用，支持有限并行调研、参考图生图、全量并发和 HTML 交付的小红书内容工作流。",
+  "version": "2.0.0",
+  "description": "跨 Codex、Claude Code 和 Hermes 使用，首次选择生图模型后复用默认项，选题后全批并发生图并立即交付 HTML 的小红书内容工作流。",
   "skills": [
     "skills/xhs-content-employee",
     "skills/product-material-intake",

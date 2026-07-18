@@ -1,67 +1,52 @@
 ---
 name: xhs-visual-planner
-description: 在唯一一次 compose 调用中把文案规划为最小必要图片集合和简洁、开放的参考图生图 Prompt，不调用生图接口。
+description: 在唯一一次 compose 调用中把文案规划为最小必要图片集合，并直接输出发送给已选择生图模型的全部最终 Prompt。
 ---
 
 # Xiaohongshu Visual Planner
 
-## Input Contract
+## 输入
 
 ```yaml
 content_package: object
-visual_mode: existing_only | ai_assist
 official_reference_images: [object]
-selected_provider: string | null
-selected_model: string | null
-selected_size: string | null
-selected_quality: string | null
 ```
 
-## Output Contract
+## 输出
 
 ```yaml
 visual_plan:
-  mode: existing_only | ai_assist
   pages:
     - page_type: cover | product_focus | scene_story | information_card
       task: string
       exact_text: [string]
       font_mood: string
-      prompt: string | null
+      prompt: string
       reference_image_path: string | null
-      reference_image_sha256: string | null
 prompt_packages: [object]
-open_questions: [string]
 ```
 
-## Method
+## 执行
 
-本 Skill 与 `$xhs-copy-storyboard` 在一次 compose 调用中共同应用，直接基于同一份事实边界、文案和页面任务输出视觉计划，不等待第二次模型调用。
+本 Skill 与 `$xhs-copy-storyboard` 在同一次 compose 调用中共同应用。文案完成
+时，全部生图 Prompt 也必须成为最终版本，随后直接进入所选模型并发生图。
 
 1. 每页只承担一个独立信息任务。
-2. 页数不设固定目标，只生成内容和视觉意图明显不同的最小必要集合。
-3. `existing_only` 直接使用已有图片，不生成 Prompt，不加工图片。
-4. `ai_assist` 只为首图选择清晰的官网产品图作为参考图，记录本地路径和 SHA-256；第二页起 `reference_image_path` 和 `reference_image_sha256` 两个字段必须为空。
-5. Prompt 保持简短，只写：
-   - 本页要表达什么；
-   - 产品或品牌名称；
-   - 首图以官网产品参考图为产品外观依据，后续页不写参考图要求；
-   - 必须出现的中文文字；
-   - 字体的大致气质；
-   - 3:4 小红书成品图。
-6. 不逐项指定构图、镜头、灯光、材质、配色、道具或背景细节，让图片模型自由完成视觉创意。
-7. 首图不要求模型复刻参考图背景，只参考产品包装、Logo、图标、颜色和识别特征。
-8. 不规划代码加字、抠图、产品叠加、背景替换、裁切或合成。
-9. 允许图片模型产生轻微伪品牌文字或局部乱码，不把这类小问题设为交付门禁。
-10. 所有页面按 3:4 竖版成品图规划，一次输出全部 Prompt。
-11. 同一批次内每条 Prompt 的最终文本必须不同，不得输出 100% 完全相同的 Prompt。
+2. 只生成内容和视觉意图明显不同的最小必要图片集合。
+3. 首图需要产品外观依据时绑定清晰的官方产品参考图；其他页面不强制绑定。
+4. 每条 Prompt 写清页面任务、品牌或产品、必须出现的中文文字、字体气质和
+   `3:4` 小红书成品图。
+5. 不用代码加字、抠图、叠图、背景替换、裁切或合成。
+6. 同一批次每条 Prompt 必须表达不同的页面任务。
+7. 全部 Prompt 一次输出，输出后不展示、不复审、不评分、不改写，直接交给
+   `$xhs-approved-image-generator`。
 
 ## Prompt Pattern
 
 首图：
 
 ```text
-参考图片主体为{品牌和产品}，参考官网图片，其余构图和场景自由发挥。为小红书制作一张 3:4 成品图，表达{页面任务}，自然呈现中文“{精确文字}”，字体气质为{字体气质}。
+参考图片主体为{品牌和产品}，产品外观以参考图为依据。为小红书制作一张 3:4 成品图，表达{页面任务}，自然呈现中文“{精确文字}”，字体气质为{字体气质}。其余视觉创意、构图和场景自由发挥。
 ```
 
 第二页起：
@@ -69,8 +54,6 @@ open_questions: [string]
 ```text
 为小红书制作一张 3:4 成品图，表达{页面任务}，自然呈现中文“{精确文字}”，字体气质为{字体气质}。其余视觉创意、构图和场景自由发挥。
 ```
-
-可根据页面删减句子，不继续堆叠摄影参数和负面词列表。
 
 ## Required References
 

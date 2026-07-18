@@ -19,7 +19,6 @@ from provider_registry import (
 
 
 CUSTOM_PROFILES = ("openai-image-compatible", "generic-sync-json-image")
-DEFAULT_PROVIDER = "thinkai-image-2"
 
 
 def read_existing_config(config_path: Path) -> dict:
@@ -101,8 +100,7 @@ def save_formal_provider_config(
             "api_key": normalized_key,
             "model_alias": alias,
         }
-    if config.get("default_provider") in {None, "", "thinkai"}:
-        config["default_provider"] = DEFAULT_PROVIDER
+    config["default_provider"] = provider_id
     atomic_write(config_path, config)
     return config_path
 
@@ -173,15 +171,23 @@ def save_custom_provider_config(
         "response_path": normalized_response_path,
         "response_type": normalized_response_type,
     }
-    if config.get("default_provider") in {None, "", "thinkai"}:
-        config["default_provider"] = DEFAULT_PROVIDER
+    config["default_provider"] = normalized_id
     atomic_write(config_path, config)
     return config_path
 
 
 def print_choices() -> None:
     for index, item in enumerate(list_provider_choices(), start=1):
-        print(f"{index}. {item['name']} ({item['id']})")
+        if item["id"] == "custom":
+            print(
+                f"{index}. {item['name']} | 模型：用户自定义 | "
+                f"渠道 ID：{item['id']}"
+            )
+            continue
+        print(
+            f"{index}. {item['name']} | 模型：{item['recommended_model']} | "
+            f"默认尺寸：{item['default_size']} | 渠道 ID：{item['id']}"
+        )
 
 
 def read_api_key(use_stdin: bool, label: str) -> str:
@@ -253,7 +259,7 @@ def main() -> int:
                 "provider_name": spec["name"],
                 "model_alias": args.model_alias,
                 "model": resolve_model(provider_id, args.model_alias),
-                "default_provider": DEFAULT_PROVIDER,
+                "default_provider": provider_id,
             }
         elif provider_id == "custom":
             if not args.profile or not args.endpoint or not args.model:
@@ -277,7 +283,7 @@ def main() -> int:
                 "provider": args.custom_id,
                 "provider_name": args.name,
                 "profile": args.profile,
-                "default_provider": DEFAULT_PROVIDER,
+                "default_provider": args.custom_id,
             }
         else:
             parser.error(f"不支持的图片渠道：{args.provider}")

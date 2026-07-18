@@ -144,7 +144,7 @@ def build_request(
             "x-goog-api-key": api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "Xiaohongshu-Content-Employee/1.5",
+            "User-Agent": "Xiaohongshu-Content-Employee/2.0.0",
         },
         "body": {
             "model": model,

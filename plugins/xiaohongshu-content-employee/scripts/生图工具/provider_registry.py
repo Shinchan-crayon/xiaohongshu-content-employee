@@ -109,6 +109,11 @@ def list_provider_choices(path: Optional[Path] = None) -> list:
             "id": provider_id,
             "name": providers[provider_id]["name"],
             "status": providers[provider_id]["status"],
+            "models": dict(providers[provider_id]["models"]),
+            "recommended_model": providers[provider_id]["models"][
+                providers[provider_id]["recommended_model"]
+            ],
+            "default_size": providers[provider_id]["default_size"],
         }
         for provider_id in FORMAL_PROVIDER_IDS
     ]

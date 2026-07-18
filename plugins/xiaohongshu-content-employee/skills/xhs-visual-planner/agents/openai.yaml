@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书视觉规划"
-  short_description: "规划封面、轮播、真实产品图和 AI 场景任务"
-  default_prompt: "使用 $xhs-visual-planner 为内容规划简洁、开放的参考图生图 Prompt。"
+  short_description: "一次输出直接发送给所选模型的全部最终 Prompt"
+  default_prompt: "使用 $xhs-visual-planner 为已确定选题一次生成全部最终 Prompt，随后直接交给已保存的默认生图模型并发生成，不展示或复审。"
 policy:
   allow_implicit_invocation: false

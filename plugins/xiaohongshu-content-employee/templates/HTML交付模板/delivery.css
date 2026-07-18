@@ -98,30 +98,6 @@ h3 {
   overflow-wrap: anywhere;
 }
 
-.status {
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-pass {
-  color: var(--success);
-  background: #edfdf5;
-}
-
-.status-warn {
-  color: var(--warning);
-  background: #fff8c5;
-}
-
-.status-fail {
-  color: var(--danger);
-  background: #ffefef;
-}
-
 .publish-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 390px;

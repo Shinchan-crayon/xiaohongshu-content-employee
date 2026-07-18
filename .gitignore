@@ -13,3 +13,4 @@ __pycache__/
 coverage/
 htmlcov/
 .codex-marketplace-install.json
+plugins/xiaohongshu-content-employee/config.json

@@ -1,11 +1,11 @@
 ---
 name: xhs-approved-image-generator
-description: 在 produce 阶段把整批 Prompt 直接并发发送给已授权渠道，图片返回后立即交给 HTML 生成，不做复审或验图。
+description: 把整批最终 Prompt 直接并发发送给用户首次选择的生图模型，返回图片路径后立即交给 HTML 生成。
 ---
 
-# Xiaohongshu Approved Image Generator
+# Xiaohongshu Direct Image Generator
 
-## Input Contract
+## 输入
 
 ```yaml
 batch_file: path
@@ -13,74 +13,70 @@ output_root: path
 max_workers: integer | null
 ```
 
-每个 `items[]` 至少包含：
+`batch_file`：
 
 ```yaml
-id: string
-page: integer
-prompt: string
-generation_batch_approval: confirmed
-provider: string
-model: string
-size: string
-quality: string
-approval_digest: string
-reference_image_path: string
-reference_image_sha256: string
+schema_version: 1
+items:
+  - id: string
+    page: integer
+    prompt: string
+    reference_image_path: string | null
 ```
 
-Seedream 批次仅首图绑定官网参考图。首图参考图哈希属于批准摘要的一部分，第二页起两个参考图字段必须为空。
-
-## Output Contract
+## 输出
 
 ```yaml
+status: complete | partial | failed
+provider: string
 generated_images:
-  - page: integer
-    generation_status: complete | failed | uncertain
-    attempts: integer
-    source_path: path | null
-    final_path: path | null
-    error: string | null
-generation_status: complete | blocked
-generation_state_json: path
+  - id: string
+    page: integer
+    path: string
+    provider: string
+    model: string
+    width: integer
+    height: integer
 failed_pages: [object]
 ```
 
-## Execution Rules
-
-1. 用户已给出默认付费授权时，直接记录整批批准并在同一次命令中确定性处理渠道、模型、尺寸、质量、Prompt 和参考图哈希；不展示或复审 Prompt。
-2. 同一批次的 Prompt 不能完全相同；发现重复时整批停止，不发送任何付费请求。
-3. 仅首图允许绑定官网参考图；第二页起不得传参考图。
-4. 默认一次并发提交全部待生成页面，没有 3 页或 8 页上限。`max_workers: 0` 表示全部并发。
-5. 每页独立执行。安全瞬时错误最多重试一次；结果不确定时不得重试。
-6. 成功页面不重试。明确失败、结果不确定和恢复时遗留的 `sending` 页面都不得自动重新发送；遗留 `sending` 必须转为 `uncertain`。
-7. 最终失败或不确定时记录准确页码、尝试次数和最后错误，并反馈给用户。
-8. 模型返回的 PNG、JPEG 或 WebP 原字节直接复制到 `final/`。
-9. 禁止代码加字、裁切、抠图、产品叠加、背景替换和图片合成。
-10. 不执行生成后图片相似度自检、删除或重生成。
-11. 轻微伪品牌文字或局部乱码允许交付。
-12. 默认关闭请求与响应 JSON 快照；仅显式调试时允许在用户任务目录生成已脱敏快照，插件成品目录不得保存快照。
-13. 不打开生成图片，不执行视觉验收、内容安全审计或最终检查；整批返回后立即进入 HTML 生成。
-
-## Runtime Command
+## 执行
 
 ```bash
 python3 ../../scripts/生图工具/batch_generate.py \
-  --batch-file "<BATCH_JSON>" \
-  --output-root "<USER_TASK_DIRECTORY>" \
-  --execute
+  --batch-file "<TEMP_BATCH_JSON>" \
+  --output-root "<USER_OUTPUT_DIRECTORY>"
 ```
+
+执行规则：
+
+1. 使用 `config.json` 中保存的默认图片渠道和模型。
+2. 所有页面一次并发提交，`max_workers: 0` 表示全部并发。
+3. Prompt 原样发送，不展示、不复审、不计算审批哈希。
+4. 不运行本地预检、质检、安全审计或图片检查。
+5. 不打开图片，不截图，不评价，不删除，不重生成。
+6. 每页只请求一次，不自动重试。
+7. 不写 `generation-state.json`、checkpoint、请求响应快照或调试日志。
+8. 运行时只保留最终图片；临时下载目录自动删除。
+9. 图片返回后立即把结果交给 `$xhs-html-delivery`。
+
+首次使用时，如果 `config.json` 不存在或没有 `default_provider`，先运行：
+
+```bash
+python3 ../../scripts/生图工具/configure_provider.py --list
+```
+
+把完整的渠道和模型列表展示给用户。用户选择并完成配置后保存默认项，以后
+直接复用，不再重复询问。切换模型只在用户明确要求时执行。
 
 ## Runtime
 
+- 批量生图：`../../scripts/生图工具/batch_generate.py`
+- 单图请求：`../../scripts/生图工具/generate_image.py`
+- 首次选择：`../../scripts/生图工具/configure_provider.py`
 - 渠道清单：`../../assets/image_providers.json`
 - 配置示例：`../../config.example.json`
 - Python 依赖：`../../requirements.txt`
-- Prompt 批准哈希：`../../scripts/生图工具/approval_hash.py`
-- 渠道配置：`../../scripts/生图工具/configure_provider.py`
-- 本地预检：`../../scripts/生图工具/provider_preflight.py`
-- 单图生成：`../../scripts/生图工具/generate_image.py`
-- 批量生成：`../../scripts/生图工具/batch_generate.py`
 
 ## Required References
 

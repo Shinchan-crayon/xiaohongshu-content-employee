@@ -41,11 +41,9 @@ IMAGE_GENERATION_RUNTIME_FILES = (
     Path("assets") / "image_providers.json",
     Path("config.example.json"),
     Path("requirements.txt"),
-    Path("scripts") / "生图工具" / "approval_hash.py",
     Path("scripts") / "生图工具" / "batch_generate.py",
     Path("scripts") / "生图工具" / "configure_provider.py",
     Path("scripts") / "生图工具" / "generate_image.py",
-    Path("scripts") / "生图工具" / "provider_preflight.py",
     Path("scripts") / "生图工具" / "provider_registry.py",
     Path("scripts") / "生图工具" / "providers" / "__init__.py",
     Path("scripts") / "生图工具" / "providers" / "base.py",
@@ -116,7 +114,10 @@ def skill_resource_paths(source_skill_dir: Path, skill_text: str) -> Set[Path]:
     if source_skill_dir.name == "xhs-html-delivery":
         resources.update(HTML_DELIVERY_TEMPLATE_FILES)
         resources.add(HTML_DELIVERY_SCRIPT)
-    if source_skill_dir.name == "xhs-approved-image-generator":
+    if source_skill_dir.name in {
+        "xhs-content-employee",
+        "xhs-approved-image-generator",
+    }:
         resources.update(IMAGE_GENERATION_RUNTIME_FILES)
 
     return resources
@@ -177,11 +178,14 @@ def verify_staged_skill(skill_dir: Path) -> None:
                 raise InstallError(
                     f"xhs-html-delivery is missing template file: {template.as_posix()}"
                 )
-    if skill_dir.name == "xhs-approved-image-generator":
+    if skill_dir.name in {
+        "xhs-content-employee",
+        "xhs-approved-image-generator",
+    }:
         for runtime_file in IMAGE_GENERATION_RUNTIME_FILES:
             if not (skill_dir / runtime_file).is_file():
                 raise InstallError(
-                    "xhs-approved-image-generator is missing runtime file: "
+                    f"{skill_dir.name} is missing image runtime file: "
                     f"{runtime_file.as_posix()}"
                 )
 

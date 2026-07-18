@@ -3,7 +3,6 @@
   "title": "Xiaohongshu Content Employee Delivery",
   "type": "object",
   "required": [
-    "content_digest",
     "project",
     "evidence",
     "topics",
@@ -15,10 +14,6 @@
     "images"
   ],
   "properties": {
-    "content_digest": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
     "project": {
       "type": "object",
       "properties": {

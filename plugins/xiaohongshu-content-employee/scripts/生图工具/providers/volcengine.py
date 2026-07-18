@@ -26,7 +26,12 @@ def load_config(raw_config: dict, provider_spec: dict = None) -> dict:
             "models": {},
             "default_size": "2k",
         }
-    saved = provider_config(raw_config, "seedream")
+    providers = raw_config.get("providers")
+    saved = providers.get("seedream") if isinstance(providers, dict) else None
+    if not isinstance(saved, dict):
+        saved = raw_config.get("seedream")
+    if not isinstance(saved, dict):
+        raise RuntimeError("未配置火山引擎 Seedream。请先选择并配置生图模型。")
     base_url = provider_spec["base_url"]
     legacy_base_url = str(saved.get("base_url") or base_url).rstrip("/")
     if legacy_base_url != base_url:
@@ -58,7 +63,7 @@ def build_headers(api_key: str) -> dict:
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "Accept": "*/*",
-        "User-Agent": "Xiaohongshu-Content-Employee/1.5",
+        "User-Agent": "Xiaohongshu-Content-Employee/2.0.0",
     }
 
 

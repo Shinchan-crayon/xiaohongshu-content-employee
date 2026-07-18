@@ -1,18 +1,8 @@
 {
+  "default_provider": null,
   "base_url": "https://www.thinkai.tv/v1",
   "model": "gpt-image-2",
   "api_key": "",
-  "default_provider": "thinkai-image-2",
-  "image_setup": {
-    "setup_version": 1,
-    "completed": false,
-    "visual_mode": null,
-    "default_provider": null,
-    "default_model": null,
-    "default_size": null,
-    "default_quality": null,
-    "updated_at": null
-  },
   "providers": {
     "thinkai-nano": {
       "api_key": "",
@@ -36,6 +26,7 @@
       "profile": "openai-image-compatible",
       "endpoint": "https://api.example.com/v1/images/generations",
       "model": "image-model",
+      "default_size": "1024x1536",
       "auth_type": "bearer",
       "api_key_header": "",
       "response_path": "data.0.b64_json",
