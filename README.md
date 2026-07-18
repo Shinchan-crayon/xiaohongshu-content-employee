@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/plugin-icon.png" width="128" alt="小红书内容员工">
+  <img src="plugins/xiaohongshu-content-employee/assets/plugin-icon.png" width="128" alt="小红书内容员工">
 </p>
 
 <h1 align="center">小红书内容员工</h1>
@@ -114,7 +114,7 @@ claude plugin install xiaohongshu-content-employee@xiaohongshu-content-employee
 克隆仓库后运行：
 
 ```bash
-python3 scripts/安装工具/install_skills.py --runtime hermes
+python3 plugins/xiaohongshu-content-employee/scripts/安装工具/install_skills.py --runtime hermes
 ```
 
 安装器会安装同一套七个 Skill。已有同名 Skill 时默认不覆盖；确认升级时追加

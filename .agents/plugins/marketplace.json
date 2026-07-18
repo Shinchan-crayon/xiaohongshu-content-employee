@@ -8,7 +8,7 @@
       "name": "xiaohongshu-content-employee",
       "source": {
         "source": "local",
-        "path": "."
+        "path": "./plugins/xiaohongshu-content-employee"
       },
       "policy": {
         "installation": "AVAILABLE",

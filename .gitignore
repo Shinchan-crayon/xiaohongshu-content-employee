@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.temp
+*.bak
+*~
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+.codex-marketplace-install.json
