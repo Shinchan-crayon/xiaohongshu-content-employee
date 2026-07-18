@@ -25,6 +25,21 @@ REQUIRED_SECTIONS = (
     "carousel",
     "images",
 )
+ALLOWED_TOP_LEVEL_FIELDS = frozenset(REQUIRED_SECTIONS)
+SENSITIVE_KEY_PATTERN = re.compile(
+    r"(?i)(api[_-]?key|authorization|credential|password|secret|token|"
+    r"request|response|debug|trace|log|screenshot|test[_-]?report|"
+    r"development[_-]?plan)"
+)
+LOCAL_PATH_PATTERN = re.compile(
+    r"(?i)(?:^|[\s\"'])("
+    + re.escape("file:" + "//")
+    + "|"
+    + re.escape("~" + "/")
+    + r"|/(?:"
+    + "|".join(("Users", "home", "tmp", "var/folders"))
+    + r")/|[A-Z]:[\\/])"
+)
 PROVIDER_NAMES = {
     "thinkai-image-2": "ThinkAI Image 2",
     "thinkai-nano": "ThinkAI Nano",
@@ -67,8 +82,48 @@ def require_mapping_items(value: Any, name: str) -> List[Dict[str, Any]]:
     ]
 
 
+def find_sensitive_key(value: Any, path: tuple[str, ...] = ()) -> str | None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized = str(key)
+            current = (*path, normalized)
+            if SENSITIVE_KEY_PATTERN.search(normalized):
+                return ".".join(current)
+            found = find_sensitive_key(item, current)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found = find_sensitive_key(item, (*path, str(index)))
+            if found:
+                return found
+    return None
+
+
+def find_local_path(value: Any, path: tuple[str, ...] = ()) -> str | None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            found = find_local_path(item, (*path, str(key)))
+            if found:
+                return found
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found = find_local_path(item, (*path, str(index)))
+            if found:
+                return found
+    elif isinstance(value, str) and LOCAL_PATH_PATTERN.search(value):
+        return ".".join(path)
+    return None
+
+
 def validate_payload(payload: Any, source_dir: Path) -> None:
     root = require_mapping(payload, "delivery payload")
+    unknown = sorted(set(root) - ALLOWED_TOP_LEVEL_FIELDS)
+    if unknown:
+        raise DeliveryError("unknown delivery fields: " + ", ".join(unknown))
+    sensitive_key = find_sensitive_key(root)
+    if sensitive_key:
+        raise DeliveryError(f"sensitive field is not allowed: {sensitive_key}")
     missing = [key for key in REQUIRED_SECTIONS if key not in root]
     if missing:
         raise DeliveryError(
@@ -112,7 +167,15 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
         if image_id in image_ids:
             raise DeliveryError(f"duplicate image id: {image_id}")
         image_ids.add(image_id)
-        candidate = (source_dir / image_path).resolve()
+        raw_path = Path(image_path).expanduser()
+        if raw_path.is_absolute():
+            raise DeliveryError(f"images[{index}].path must be relative")
+        source_root = source_dir.resolve()
+        candidate = (source_root / raw_path).resolve()
+        if candidate != source_root and source_root not in candidate.parents:
+            raise DeliveryError(
+                f"images[{index}].path points outside delivery source"
+            )
         if not candidate.is_file():
             raise DeliveryError(f"missing image: {image_path}")
         if image.get("source_type") == "ai_generated":
@@ -141,6 +204,10 @@ def validate_payload(payload: Any, source_dir: Path) -> None:
             raise DeliveryError(
                 f"carousel[{index}] references unknown image id: {image_id}"
             )
+
+    local_path = find_local_path(root)
+    if local_path:
+        raise DeliveryError(f"local machine path is not allowed: {local_path}")
 
 
 def status_class(status: Any) -> str:
@@ -585,6 +652,10 @@ def render_content(payload: Dict[str, Any], source_dir: Path, output_dir: Path) 
 
 
 def generate(source: Path, output: Path) -> None:
+    package_root = PACKAGE_ROOT.resolve()
+    resolved_output = output.resolve()
+    if resolved_output == package_root or package_root in resolved_output.parents:
+        raise DeliveryError("HTML output cannot be inside the plugin package")
     payload = json.loads(source.read_text(encoding="utf-8"))
     validate_payload(payload, source.parent)
     template = (TEMPLATE_DIR / "delivery.html").read_text(encoding="utf-8")

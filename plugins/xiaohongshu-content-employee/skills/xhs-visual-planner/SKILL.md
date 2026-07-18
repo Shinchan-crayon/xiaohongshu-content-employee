@@ -1,6 +1,6 @@
 ---
 name: xhs-visual-planner
-description: 在 compose 阶段把文案规划为最小必要图片集合和简洁、开放的参考图生图 Prompt，不调用生图接口。
+description: 在唯一一次 compose 调用中把文案规划为最小必要图片集合和简洁、开放的参考图生图 Prompt，不调用生图接口。
 ---
 
 # Xiaohongshu Visual Planner
@@ -35,6 +35,8 @@ open_questions: [string]
 ```
 
 ## Method
+
+本 Skill 与 `$xhs-copy-storyboard` 在一次 compose 调用中共同应用，直接基于同一份事实边界、文案和页面任务输出视觉计划，不等待第二次模型调用。
 
 1. 每页只承担一个独立信息任务。
 2. 页数不设固定目标，只生成内容和视觉意图明显不同的最小必要集合。

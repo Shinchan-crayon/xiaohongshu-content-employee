@@ -48,8 +48,9 @@ SIZE_ALIASES = {
 }
 DEFAULT_BASE_URL = "https://www.thinkai.tv/v1"
 DEFAULT_MODEL = "gpt-image-2"
-CONNECT_TIMEOUT_SECONDS = 30
-READ_TIMEOUT_SECONDS = 900
+CONNECT_TIMEOUT_SECONDS = 10
+READ_TIMEOUT_SECONDS = 85
+DOWNLOAD_TIMEOUT_SECONDS = 20
 SENSITIVE_HEADER_NAMES = {
     "authorization",
     "x-api-key",
@@ -60,6 +61,10 @@ SENSITIVE_HEADER_NAMES = {
 
 class GenerationError(RuntimeError):
     """图片生成明确失败。"""
+
+
+class GenerationRetryableError(GenerationError):
+    """请求未被受理，可安全重试一次。"""
 
 
 class GenerationUncertainError(GenerationError):
@@ -267,13 +272,18 @@ def request_json(
         status_code = exc.response.status_code if exc.response is not None else None
         detail = exc.response.text if exc.response is not None else str(exc)
         detail = sanitize_error_detail(detail, headers)
+        if status_code == 429:
+            raise GenerationRetryableError(
+                f"{service_name} 返回 HTTP 429，请求未被受理，可安全重试一次："
+                f"{detail}"
+            ) from exc
         if status_code == 408 or (status_code is not None and status_code >= 500):
             raise GenerationUncertainError(
                 f"{service_name} 返回 HTTP {status_code}，"
                 "无法安全确认付费生成请求是否已完成。"
                 f"请先检查渠道后台：{detail}"
             ) from exc
-        raise RuntimeError(
+        raise GenerationError(
             f"{service_name} 请求失败，HTTP {status_code}：{detail}。"
             "付费生成请求不会自动重试。"
         ) from exc
@@ -338,7 +348,7 @@ def curl_download(image_url: str) -> bytes:
         ["curl", "-L", "--fail", "--silent", "--show-error", image_url],
         capture_output=True,
         check=False,
-        timeout=600,
+        timeout=DOWNLOAD_TIMEOUT_SECONDS,
     )
     if curl.returncode == 0 and curl.stdout:
         return curl.stdout
@@ -359,7 +369,7 @@ def download_image(image_url: str) -> bytes:
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=600) as resp:
+        with urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT_SECONDS) as resp:
             return resp.read()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
@@ -510,6 +520,7 @@ def write_artifacts(
     response_json: dict,
     output_dir: Optional[str],
     output_dir_fd: Optional[int] = None,
+    debug_snapshots: bool = False,
 ) -> dict:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     target_dir = (
@@ -542,30 +553,31 @@ def write_artifacts(
 
     request_path = target_dir / "request.json"
     response_path = target_dir / "response.json"
-    _write_output_bytes(
-        request_path,
-        (
-            json.dumps(
-                redact_snapshot(deepcopy(request_body)),
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n"
-        ).encode("utf-8"),
-        output_dir_fd,
-    )
-    _write_output_bytes(
-        response_path,
-        (
-            json.dumps(
-                redact_snapshot(deepcopy(response_json), omitted_values),
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n"
-        ).encode("utf-8"),
-        output_dir_fd,
-    )
+    if debug_snapshots:
+        _write_output_bytes(
+            request_path,
+            (
+                json.dumps(
+                    redact_snapshot(deepcopy(request_body)),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+            ).encode("utf-8"),
+            output_dir_fd,
+        )
+        _write_output_bytes(
+            response_path,
+            (
+                json.dumps(
+                    redact_snapshot(deepcopy(response_json), omitted_values),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+            ).encode("utf-8"),
+            output_dir_fd,
+        )
 
     image_bytes, source_type, image_url = extract_image_bytes(config, response_json)
     image_format, width, height = inspect_image(image_bytes)
@@ -577,8 +589,6 @@ def write_artifacts(
 
     artifacts = {
         "image_path": str(image_path),
-        "request_path": str(request_path),
-        "response_path": str(response_path),
         "image_sha256": hashlib.sha256(image_bytes).hexdigest(),
         "image_url": redact_url(image_url) if is_remote_url else None,
         "image_source": (
@@ -588,6 +598,9 @@ def write_artifacts(
         ),
         "actual_size": f"{width}x{height}",
     }
+    if debug_snapshots:
+        artifacts["request_path"] = str(request_path)
+        artifacts["response_path"] = str(response_path)
     return artifacts
 
 

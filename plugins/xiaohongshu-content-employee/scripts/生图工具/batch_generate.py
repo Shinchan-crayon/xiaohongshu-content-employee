@@ -19,6 +19,8 @@ from pathlib import Path
 from typing import Callable
 
 from generate_image import (
+    GenerationRetryableError,
+    GenerationUncertainError,
     approval_digest,
     generate_approved_image,
     load_config,
@@ -29,10 +31,9 @@ from provider_preflight import verify_local
 
 
 DEFAULT_MAX_WORKERS = 0
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 2
 STATE_FILENAME = "generation-state.json"
 ITEM_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-FINAL_STATUSES = {"complete"}
 
 
 class BatchGenerationError(RuntimeError):
@@ -213,8 +214,12 @@ def _load_or_create_state(output_root: Path, normalized: dict) -> dict:
     for item in state_items:
         item.setdefault("attempts", 0)
         item.setdefault("errors", [])
-        if item.get("generation_status") in {"sending", "uncertain"}:
-            item["generation_status"] = "pending"
+        if item.get("generation_status") == "sending":
+            item["generation_status"] = "uncertain"
+            item["error"] = (
+                item.get("error")
+                or "上次执行在请求发送期间中断，结果不确定，不会自动重新发送。"
+            )
     return state
 
 
@@ -369,17 +374,22 @@ def batch_generate(
         pending = [
             item
             for item in prepared_items
-            if state_by_id[item["id"]]["generation_status"] not in FINAL_STATUSES
+            if state_by_id[item["id"]]["generation_status"] == "pending"
             and int(state_by_id[item["id"]].get("attempts", 0)) < MAX_ATTEMPTS
         ]
         if not pending:
             failed = [
                 item for item in state["items"]
-                if item["generation_status"] not in FINAL_STATUSES
+                if item["generation_status"] != "complete"
             ]
             state["status"] = "blocked" if failed else "complete"
             state["failed_pages"] = [
-                {"page": item["page"], "error": item.get("error")}
+                {
+                    "page": item["page"],
+                    "id": item["id"],
+                    "attempts": item["attempts"],
+                    "error": item.get("error"),
+                }
                 for item in failed
             ]
             _save_state(output_root, state)
@@ -399,7 +409,6 @@ def batch_generate(
                     attempt = state_item["attempts"]
                     state_item["generation_status"] = "sending"
                     state_item["error"] = None
-                    _save_state(output_root, state)
                 try:
                     attempt_output_dir = (
                         output_root
@@ -429,7 +438,7 @@ def batch_generate(
                     )
                     final_path = _copy_model_output(item, raw_result, output_root)
                     return _relative_result(output_root, raw_result), str(final_path)
-                except Exception as exc:
+                except GenerationRetryableError as exc:
                     message = str(exc) or exc.__class__.__name__
                     with state_lock:
                         state_item["errors"].append(
@@ -441,7 +450,26 @@ def batch_generate(
                             if state_item["attempts"] >= MAX_ATTEMPTS
                             else "retrying"
                         )
-                        _save_state(output_root, state)
+                    if state_item["attempts"] >= MAX_ATTEMPTS:
+                        return None
+                except GenerationUncertainError as exc:
+                    message = str(exc) or exc.__class__.__name__
+                    with state_lock:
+                        state_item["errors"].append(
+                            {"attempt": attempt, "error": message}
+                        )
+                        state_item["error"] = message
+                        state_item["generation_status"] = "uncertain"
+                    return None
+                except Exception as exc:
+                    message = str(exc) or exc.__class__.__name__
+                    with state_lock:
+                        state_item["errors"].append(
+                            {"attempt": attempt, "error": message}
+                        )
+                        state_item["error"] = message
+                        state_item["generation_status"] = "failed"
+                    return None
             return None
 
         workers = len(pending) if worker_limit == 0 else min(worker_limit, len(pending))
@@ -470,7 +498,7 @@ def batch_generate(
 
         failed = [
             item for item in state["items"]
-            if item["generation_status"] not in FINAL_STATUSES
+            if item["generation_status"] != "complete"
         ]
         state["failed_pages"] = [
             {

@@ -20,18 +20,38 @@
       "pattern": "^[0-9a-f]{64}$"
     },
     "project": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "goal": {"type": "string"},
+        "generated_at": {"type": "string"},
+        "account_name": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "evidence": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "label": {"type": "string"},
+          "claim": {"type": "string"},
+          "source": {"type": "string"},
+          "source_url": {"type": "string"}
+        },
+        "additionalProperties": false
       }
     },
     "topics": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "reason": {"type": "string"},
+          "angle": {"type": "string"}
+        },
+        "additionalProperties": false
       }
     },
     "titles": {
@@ -42,29 +62,46 @@
         "properties": {
           "text": {"type": "string"},
           "recommended": {"type": "boolean"}
-        }
+        },
+        "additionalProperties": false
       }
     },
     "post": {
       "type": "object",
       "properties": {
+        "hook": {"type": "string"},
         "body": {
           "type": "array",
           "items": {"type": "string"}
-        }
-      }
+        },
+        "cta": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "tags": {
       "type": "array",
       "items": {"type": "string"}
     },
     "cover": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "headline": {"type": "string"},
+        "subheadline": {"type": "string"},
+        "image_id": {"type": "string"}
+      },
+      "additionalProperties": false
     },
     "carousel": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "page": {"type": "integer"},
+          "headline": {"type": "string"},
+          "body": {"type": "string"},
+          "image_id": {"type": "string"}
+        },
+        "additionalProperties": false
       }
     },
     "images": {
@@ -85,8 +122,10 @@
           "model": {"type": "string"},
           "width": {"type": "integer"},
           "height": {"type": "integer"}
-        }
+        },
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }
