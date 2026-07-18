@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "1.8.3",
-  "description": "有限子 Agent 并行调研、官网参考图生图、全量并发和快速 HTML 交付的小红书内容工作流。",
+  "version": "1.9.0",
+  "description": "跨 Codex、Claude Code 和 Hermes 使用，支持有限并行调研、参考图生图、全量并发和 HTML 交付的小红书内容工作流。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"

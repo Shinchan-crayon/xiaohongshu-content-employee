@@ -1,0 +1,28 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "xiaohongshu-content-employee",
+  "version": "1.9.0",
+  "description": "面向个人创作者的小红书图文工作流，支持素材整理、事实调研、文案与轮播、生图和独立 HTML 交付。",
+  "author": {
+    "name": "ThinkAI",
+    "url": "https://www.thinkai.tv"
+  },
+  "homepage": "https://github.com/Shinchan-crayon/xiaohongshu-content-employee",
+  "repository": "https://github.com/Shinchan-crayon/xiaohongshu-content-employee",
+  "license": "MIT",
+  "keywords": [
+    "xiaohongshu",
+    "content",
+    "image-generation",
+    "html"
+  ],
+  "skills": [
+    "./skills/xhs-content-employee",
+    "./skills/product-material-intake",
+    "./skills/xhs-research-strategy",
+    "./skills/xhs-copy-storyboard",
+    "./skills/xhs-visual-planner",
+    "./skills/xhs-approved-image-generator",
+    "./skills/xhs-html-delivery"
+  ]
+}

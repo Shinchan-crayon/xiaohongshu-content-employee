@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the seven Xiaohongshu content Skills into a Codex skills directory."""
+"""Install the seven Xiaohongshu content Skills for Codex or Hermes."""
 
 from __future__ import annotations
 
@@ -69,6 +69,12 @@ class InstallError(Exception):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--runtime",
+        choices=("codex", "hermes"),
+        default="codex",
+        help="Select the default installation location.",
+    )
+    parser.add_argument(
         "--target",
         type=Path,
         help="Install directly into this skills directory.",
@@ -81,9 +87,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def resolve_target(target: Path | None) -> Path:
+def resolve_target(target: Path | None, runtime: str = "codex") -> Path:
     if target is not None:
         return target.expanduser().resolve()
+
+    if runtime == "hermes":
+        hermes_home = os.environ.get("HERMES_HOME")
+        if hermes_home:
+            return (Path(hermes_home).expanduser() / "skills").resolve()
+        return (Path.home() / ".hermes" / "skills").resolve()
 
     codex_home = os.environ.get("CODEX_HOME")
     if codex_home:
@@ -259,11 +271,11 @@ def install(staging_root: Path, target: Path, force: bool) -> None:
 
 def main() -> int:
     args = parse_args()
-    target = resolve_target(args.target)
+    target = resolve_target(args.target, args.runtime)
 
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.TemporaryDirectory(prefix="codex-skill-build-", dir=target.parent) as tmp:
+        with tempfile.TemporaryDirectory(prefix="skill-build-", dir=target.parent) as tmp:
             staging_root = Path(tmp) / "skills"
             staging_root.mkdir()
             build_staging_area(staging_root)
@@ -276,6 +288,7 @@ def main() -> int:
     for skill_name in EXPECTED_SKILLS:
         print(f"- {skill_name}")
     print("Public entry: xhs-content-employee")
+    print(f"Runtime: {args.runtime}")
     print(f"Target: {target}")
     return 0
 

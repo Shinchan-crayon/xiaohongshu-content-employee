@@ -1,0 +1,27 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "xiaohongshu-content-employee",
+  "description": "ThinkAI 提供的小红书内容创作插件。",
+  "owner": {
+    "name": "ThinkAI",
+    "url": "https://www.thinkai.tv"
+  },
+  "plugins": [
+    {
+      "name": "xiaohongshu-content-employee",
+      "source": "./",
+      "description": "素材整理、事实调研、文案与轮播、生图和独立 HTML 交付的一体化小红书内容工作流。",
+      "version": "1.9.0",
+      "author": {
+        "name": "ThinkAI"
+      },
+      "category": "content",
+      "keywords": [
+        "xiaohongshu",
+        "content",
+        "image-generation",
+        "html"
+      ]
+    }
+  ]
+}
