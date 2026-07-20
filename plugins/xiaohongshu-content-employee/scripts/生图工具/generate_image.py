@@ -7,10 +7,11 @@ import argparse
 import base64
 import binascii
 import json
+import math
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from urllib.parse import urlsplit
 
 try:
@@ -32,6 +33,7 @@ from provider_registry import (  # noqa: E402
     FORMAL_PROVIDER_IDS,
     get_provider,
     normalize_provider_id,
+    provider_supports_reference_images,
 )
 from providers import get_adapter  # noqa: E402
 
@@ -47,6 +49,112 @@ DEFAULT_QUALITY = {
 
 class GenerationError(RuntimeError):
     """图片请求、下载或保存失败。"""
+
+
+class GenerationUncertainError(GenerationError):
+    """付费请求已开始，但无法确认渠道是否已经完成计费或生成。"""
+
+
+class DownloadPendingError(GenerationError):
+    """渠道已返回图片 URL，但图片尚未下载到本地。"""
+
+    def __init__(
+        self,
+        source_url: str,
+        provider: str,
+        model: str,
+        requested_size: str,
+    ):
+        super().__init__("图片已生成，但下载尚未完成。")
+        self.source_url = source_url
+        self.provider = provider
+        self.model = model
+        self.requested_size = requested_size
+
+
+LifecycleCallback = Optional[Callable[[dict], None]]
+
+
+def emit_lifecycle(callback: LifecycleCallback, **event) -> None:
+    if callback is not None:
+        callback(dict(event))
+
+
+def _nonnegative_number(value: object) -> Optional[float]:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized < 0:
+        return None
+    return normalized
+
+
+def extract_usage_metrics(payload: dict) -> dict:
+    usage = payload.get("usage")
+    if not isinstance(usage, dict):
+        usage = {}
+
+    token_count = None
+    for key in ("total_tokens", "total_token_count", "totalTokens"):
+        candidate = usage.get(key)
+        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate >= 0:
+            token_count = candidate
+            break
+    if token_count is None:
+        token_parts = []
+        for keys in (
+            ("input_tokens", "input_token_count", "prompt_tokens"),
+            ("output_tokens", "output_token_count", "completion_tokens"),
+        ):
+            value = next(
+                (
+                    usage.get(key)
+                    for key in keys
+                    if isinstance(usage.get(key), int)
+                    and not isinstance(usage.get(key), bool)
+                    and usage.get(key) >= 0
+                ),
+                None,
+            )
+            if value is not None:
+                token_parts.append(value)
+        if token_parts:
+            token_count = sum(token_parts)
+
+    raw_cost = usage.get("cost")
+    if raw_cost is None:
+        raw_cost = payload.get("cost")
+    cost_currency = None
+    if isinstance(raw_cost, dict):
+        cost_amount = _nonnegative_number(
+            raw_cost.get("amount", raw_cost.get("value"))
+        )
+        cost_currency = str(
+            raw_cost.get("currency")
+            or usage.get("currency")
+            or payload.get("currency")
+            or ""
+        ).strip().upper()
+    else:
+        cost_amount = _nonnegative_number(
+            raw_cost
+            if raw_cost is not None
+            else usage.get("total_cost", payload.get("total_cost"))
+        )
+        cost_currency = str(
+            usage.get("currency") or payload.get("currency") or ""
+        ).strip().upper()
+    if cost_amount is None or not cost_currency:
+        cost_amount = None
+        cost_currency = None
+
+    return {
+        "token_count": token_count,
+        "token_status": "reported" if token_count is not None else "unavailable",
+        "cost_amount": cost_amount,
+        "cost_currency": cost_currency,
+        "cost_status": "reported" if cost_amount is not None else "unavailable",
+    }
 
 
 def require_prompt(value: object) -> str:
@@ -123,22 +231,29 @@ def resolve_request_size(
     return adapter.normalize_size(config.get("default_size") or "1024x1536", None)
 
 
-def encode_reference_image(reference_image_path: Optional[Path]) -> list[str] | None:
-    if reference_image_path is None:
+def encode_reference_images(
+    reference_image_paths: Optional[list[Path]],
+) -> list[str] | None:
+    if not reference_image_paths:
         return None
-    path = Path(reference_image_path).expanduser().resolve()
-    if not path.is_file():
-        raise GenerationError("产品参考图不存在。")
-    mime = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-    }.get(path.suffix.lower())
-    if mime is None:
-        raise GenerationError("产品参考图只支持 JPEG、PNG 或 WebP。")
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    return [f"data:{mime};base64,{encoded}"]
+    encoded_images = []
+    for reference_image_path in reference_image_paths:
+        path = Path(reference_image_path).expanduser().resolve()
+        if not path.is_file():
+            raise GenerationError(f"产品参考图不存在：{path}")
+        mime = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }.get(path.suffix.lower())
+        if mime is None:
+            raise GenerationError(
+                f"产品参考图只支持 JPEG、PNG 或 WebP：{path.name}"
+            )
+        encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+        encoded_images.append(f"data:{mime};base64,{encoded}")
+    return encoded_images
 
 
 def build_request(
@@ -147,7 +262,7 @@ def build_request(
     config: dict,
     prompt: str,
     size: str,
-    reference_image_path: Optional[Path],
+    reference_image_paths: Optional[list[Path]],
 ) -> dict:
     quality = DEFAULT_QUALITY.get(provider_id, "")
     if provider_id == "seedream":
@@ -156,7 +271,7 @@ def build_request(
             prompt,
             size,
             quality,
-            encode_reference_image(reference_image_path),
+            encode_reference_images(reference_image_paths),
         )
     return adapter.build_request(config, prompt, size, quality)
 
@@ -192,6 +307,11 @@ def request_generation(provider_name: str, request: dict) -> dict:
             timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS),
         )
         response.raise_for_status()
+    except (requests.Timeout, requests.ConnectionError) as exc:
+        detail = redact_secrets(str(exc), request)
+        raise GenerationUncertainError(
+            f"{provider_name} 请求结果不确定：{detail}"
+        ) from exc
     except requests.RequestException as exc:
         status = exc.response.status_code if exc.response is not None else None
         detail = exc.response.text if exc.response is not None else str(exc)
@@ -271,6 +391,17 @@ def image_bytes_from_source(source_type: str, source_value: str) -> tuple[bytes,
     return response.content, extension_from_bytes(response.content, fallback)
 
 
+def recover_download(source_url: str, destination: Path) -> Path:
+    normalized_url = require_prompt(source_url)
+    target = Path(destination).expanduser().resolve()
+    image_bytes, extension = image_bytes_from_source("url", normalized_url)
+    if not target.suffix:
+        target = target.with_suffix(extension)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(image_bytes)
+    return target
+
+
 def dimensions_from_size(size: str) -> tuple[Optional[int], Optional[int]]:
     match = re.fullmatch(r"(\d+)x(\d+)", str(size or "").strip().lower())
     if not match:
@@ -283,7 +414,8 @@ def generate_image(
     prompt: str,
     output_dir: Path,
     provider: Optional[str] = None,
-    reference_image_path: Optional[Path] = None,
+    reference_image_paths: Optional[list[Path]] = None,
+    lifecycle_callback: LifecycleCallback = None,
 ) -> dict:
     plugin_root = Path(plugin_root).resolve()
     target_dir = Path(output_dir).expanduser().resolve()
@@ -296,6 +428,10 @@ def generate_image(
         plugin_root,
         provider,
     )
+    if reference_image_paths and not provider_supports_reference_images(provider_id):
+        raise GenerationError(
+            f"{provider_id} 不支持产品参考图，请改用支持参考图的生图渠道。"
+        )
     size = resolve_request_size(provider_id, adapter, config, provider_spec)
     request = build_request(
         provider_id,
@@ -303,21 +439,78 @@ def generate_image(
         config,
         final_prompt,
         size,
-        reference_image_path,
+        reference_image_paths,
     )
     provider_name = str(
         config.get("provider_name")
         or config.get("display_name")
         or provider_id
     )
-    payload = request_generation(provider_name, request)
+    lifecycle_base = {
+        "provider": provider_id,
+        "model": config["model"],
+        "requested_size": size,
+    }
+    emit_lifecycle(
+        lifecycle_callback,
+        request_status="request_started",
+        **lifecycle_base,
+    )
+    try:
+        payload = request_generation(provider_name, request)
+    except GenerationUncertainError:
+        emit_lifecycle(
+            lifecycle_callback,
+            request_status="uncertain",
+            **lifecycle_base,
+        )
+        raise
+    except GenerationError as exc:
+        emit_lifecycle(
+            lifecycle_callback,
+            request_status="failed",
+            error=str(exc),
+            **lifecycle_base,
+        )
+        raise
+    usage_metrics = extract_usage_metrics(payload)
+    emit_lifecycle(
+        lifecycle_callback,
+        request_status="response_received",
+        **usage_metrics,
+        **lifecycle_base,
+    )
     source_type, source_value = extract_image_source(
         provider_id,
         adapter,
         config,
         payload,
     )
-    image_bytes, extension = image_bytes_from_source(source_type, source_value)
+    try:
+        image_bytes, extension = image_bytes_from_source(source_type, source_value)
+    except GenerationError as exc:
+        if source_type == "url" or source_value.startswith(("http://", "https://")):
+            pending = DownloadPendingError(
+                source_value,
+                provider_id,
+                config["model"],
+                size,
+            )
+            emit_lifecycle(
+                lifecycle_callback,
+                request_status="download_pending",
+                source_url=source_value,
+                error=str(exc),
+                **lifecycle_base,
+            )
+            raise pending from exc
+        emit_lifecycle(
+            lifecycle_callback,
+            request_status="failed",
+            error=str(exc),
+            **lifecycle_base,
+        )
+        raise
     image_path = target_dir / f"image{extension}"
     image_path.write_bytes(image_bytes)
     width, height = dimensions_from_size(size)
@@ -328,6 +521,8 @@ def generate_image(
         "width": width,
         "height": height,
         "image_path": str(image_path),
+        "request_status": "complete",
+        **usage_metrics,
     }
 
 
@@ -338,7 +533,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--provider", help="临时覆盖 config.json 中的默认渠道")
-    parser.add_argument("--reference-image", type=Path)
+    parser.add_argument(
+        "--reference-image",
+        type=Path,
+        action="append",
+        dest="reference_images",
+        help="产品参考图，可重复传入多张",
+    )
     return parser.parse_args()
 
 
@@ -351,7 +552,7 @@ def main() -> int:
             prompt=args.prompt,
             output_dir=args.output_dir,
             provider=args.provider,
-            reference_image_path=args.reference_image,
+            reference_image_paths=args.reference_images,
         )
     except Exception as exc:
         print(str(exc), file=sys.stderr)

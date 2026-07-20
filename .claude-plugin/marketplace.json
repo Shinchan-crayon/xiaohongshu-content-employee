@@ -10,8 +10,8 @@
     {
       "name": "xiaohongshu-content-employee",
       "source": "./plugins/xiaohongshu-content-employee",
-      "description": "首次选择生图模型后复用默认项，素材和选题确定后全批并发生图并立即交付独立 HTML 的小红书内容工作流。",
-      "version": "2.0.0",
+      "description": "两个无历史模型 Worker 完成商品研究与内容生成，用户批准最终 Prompt 后由两个 Python Executor 并发生图并交付图片内嵌 HTML 与独立运行日志。",
+      "version": "2.0.1",
       "author": {
         "name": "ThinkAI"
       },

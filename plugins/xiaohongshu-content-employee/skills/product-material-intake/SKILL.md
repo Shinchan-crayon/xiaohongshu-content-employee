@@ -1,66 +1,110 @@
 ---
 name: product-material-intake
-description: 在 prepare 阶段整理产品事实、图片、卖点、目标用户、缺失材料和禁止改写项，建立可追溯素材记录。
+description: Research Worker 的商品身份与素材契约；在一次研究调用中从 task.json 锁定产品身份、真实参考图和卖点，写入 material.json。
 ---
 
 # Product Material Intake
 
+本 Skill 与 `$xhs-research-strategy` 在同一个无历史 Research Worker、同一次
+模型调用中执行。它只读取 `task.json` 中契约声明的字段，以及其中声明的产品
+链接、图片和素材；负责形成同一外部 `run_dir` 的 `material.json`。Research
+Worker 同一调用还输出 `evidence.json`。不得读取主对话、其他 Worker 对话、
+其他 JSON 产物或其他运行目录。阶段结束后销毁上下文。
+
 ## Input Contract
 
 ```yaml
+schema_version: 1
+run_id: string
+summary: string
 content_goal: string
-product_or_service: string
+product_links: [url]
 product_images: [path]
-existing_copy: string | null
-material_source_mode: user_links | internal_search | null
-material_links: [url]
-references: [path_or_url]
+material_paths: [path]
 target_audience: string | null
-learning_context: object | null
+account_voice: object | null
 ```
 
 ## Output Contract
 
 ```yaml
-facts:
-  - claim: string
-    label: FACT | INFERENCE | ASSUMPTION | UNKNOWN
-    source: string
-immutable_claims: [string]
-selling_points: [object]
-target_audience: object
-image_inventory: [object]
-missing_materials: [string]
+schema_version: 1
+run_id: string
+product_identity:
+  source_url: string
+  exact_page_title: string
+  brand: string
+  name: string
+  model: string
+  variant: string
+  category: string
+  identifying_terms: [string]
+  unresolved_fields: [string]
+  locked_terms: [string]
+  forbidden_replacements: [string]
+product_reference_pack:
+  - id: ref-*
+    path: path
+    role: front | three_quarter | package | detail | official_scene
+    supported_views: [string]
+    source_claim_ids: [claim-*]
+selling_points:
+  - id: sp-*
+    product_feature: string
+    user_problem: string
+    user_benefit: string
+    usage_scenario: string
+    source_claim_ids: [claim-*]
+    locked_wording: string
+    priority: integer
+    must_use: boolean
+    forbidden_expansions: [string]
 conflicts: [object]
-material_source_mode: user_links | internal_search
-material_source_ready: boolean
-ready_for_strategy: boolean
-applied_learning_ids: [string]
-explicit_preference_signals: [object]
+missing_material: [string]
 ```
 
-## Method
+## Product Identity
 
-1. 逐项读取客户文字和图片，不把营销形容词自动当作事实。
-2. 用 `[FACT]`、`[INFERENCE]`、`[ASSUMPTION]`、`[UNKNOWN]` 标记每条信息。
-3. 将型号、尺寸、颜色、包装、功能、价格、认证、效果和适用人群列为高风险事实字段。
-4. 建立 `immutable_claims`：未经客户确认，后续 Skill 不得修改。
-5. 为每张图片记录主体、角度、清晰度、可裁切区域、禁改项和建议用途。
-6. `material_source_mode` 为空且存在 `material_links` 时自动采用 `user_links`；为空且没有链接时自动采用 `internal_search`。
-7. 用户选择 `user_links` 时，检查 `material_links` 至少包含一个可读取的文章或产品素材链接；用户选择 `internal_search` 时允许链接为空，并整理搜索上下文。
-8. 缺少核心事实、产品图与文字冲突或素材来源路径未就绪时，`ready_for_strategy: false`。
-9. 只使用 `learning_context` 中的用户偏好和已批准知识，并把实际采用的记录写入 `applied_learning_ids`。
-10. 用户在素材整理时明确表达长期偏好，或修改内容并说明原因时，写入 `explicit_preference_signals` 交给主控保存；不要根据沉默或推测生成偏好。
+1. 读取产品链接后，先锁定页面对应的准确产品身份，再整理参考图和卖点。
+2. `source_url` 和 `exact_page_title` 保存实际页面身份；品牌、名称、型号、
+   变体、类别和识别词必须来自用户素材或页面证据。
+3. `locked_terms` 保存已核实且提及时不得改写的品牌、产品名、型号、变体和关键
+   命名；它是身份准确性护栏，不是正文关键词清单，后续文案不需要逐项出现。
+   `exact_page_title` 单独保存为内部来源身份，货号、页面标题等仅在对消费者有用时
+   才进入成稿。容易混淆的其他产品、旧款或竞品进入
+   `forbidden_replacements`。
+4. 无法确认的字段写入 `unresolved_fields`，后续 Worker 不得自行补全，也不得
+   用相似产品型号、规格或变体补位。
+5. 用户素材、页面资料或可靠来源发生冲突时写入 `conflicts`，不得自行选择更好写
+   的版本。
+
+## Reference Pack
+
+1. 用户提供的真实产品图优先；不足时只补充可靠官方来源的产品图。
+2. 每张图记录稳定 `ref-*` ID、实际路径、图片角色和肉眼可见的
+   `supported_views`。
+3. `supported_views` 只写参考图真实支持的正面、45 度、包装、细节或官方场景，
+   不推测背面、盒内结构、配件或未展示角度。
+4. 同一图片可以支持多个明确可见视角，但不能为了后续生图方便虚增视角。
+
+## Selling Points
+
+1. 每个卖点使用稳定 `sp-*` ID，完整记录“产品特征 -> 用户问题 -> 用户收益 ->
+   使用场景”四段链，并通过 `source_claim_ids` 声明同一次 Research Worker 必须建立的
+   事实。
+2. `locked_wording` 保存不能被改义的口径；`forbidden_expansions` 保存容易产生
+   夸大、产品替换或无证据因果的扩写。
+3. 用户明确要求出现或内容决策必需的卖点标记 `must_use: true`。后续
+   `content.json` 必须引用全部必用卖点 ID。
+4. 营销形容词不自动当作事实。无法核实的内容进入 `missing_material` 或冲突记录。
 
 ## Material Source Rule
 
-- `user_links`：只登记和读取用户提供的链接，不在本阶段扩展搜索。
-- `internal_search`：本阶段不虚构搜索结果，只准备交给 `$xhs-research-strategy` 的搜索上下文。
-- 输入未包含有效 `material_source_mode` 时按链接是否存在自动选择，不增加确认轮次。
-
-## Image Rule
-
-真实产品图优先。不得用 AI 改变产品外观、颜色、结构、包装、配件数量或功能表现。
+- 只读取 `task.json.product_links` 声明的产品链接。
+- 用户图片和素材路径必须来自 `task.json.product_images` 与
+  `task.json.material_paths`。
+- 需要扩展来源时，只在 `material.json.allowed_source_urls` 中声明，并由同一次
+  Research Worker 内的 `$xhs-research-strategy` 继续读取；不增加第二次模型调用。
 
 ## Required References
 

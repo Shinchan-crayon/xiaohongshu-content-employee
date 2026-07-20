@@ -1,67 +1,81 @@
 ---
 name: xhs-copy-storyboard
-description: 在唯一一次 compose 调用中自动选择证据支持的选题，并生成标题、正文、标签、封面、轮播和视觉任务。
+description: Compose Worker 在唯一一次 compose 模型调用中生成完整小红书文案、候选标题和可追溯轮播结构。
 ---
 
 # Xiaohongshu Copy Storyboard
 
+本 Skill 与 `$xhs-visual-planner` 在同一个无历史 Compose Worker、同一次
+compose 模型调用中执行。只读取 `material.json` 和 `evidence.json`，不得读取
+`task.json`、主对话、其他 Worker 对话或未声明产物。Compose Worker 只输出
+`content.json` 和 `visual.json`，随后销毁上下文。
+
 ## Input Contract
 
 ```yaml
-material_record: object
-strategy_brief: object
-selected_topic: object | null
-topic_confirmation_requested: boolean | null
-account_voice: object | null
-carousel_page_limit: integer | null
+material:
+  schema_version: 1
+  run_id: string
+  product_identity: object
+  product_reference_pack: [object]
+  selling_points: [object]
+evidence:
+  schema_version: 1
+  run_id: string
+  claims: [object]
+  sources: [object]
+  topic_candidates: [object]
+  selected_topic_id: topic-*
 ```
 
 ## Output Contract
 
 ```yaml
-topics: [object]
-titles: [object]
-post:
-  hook: string
-  body: [string]
-  cta: string
-structure_choice: string
-voice_fingerprint:
-  stance: string
-  sentence_style: string
-  preferred_expressions: [string]
-  forbidden_expressions: [string]
-  cta_style: question | suggestion | none
-tags: [string]
-cover:
-  headline: string
-  subheadline: string
-carousel: [object]
-images: [object]
-claim_map: [object]
-visual_brief:
-  page_tasks: [object]
-  real_image_inventory: [object]
-complete_content_package: object
+schema_version: 1
+run_id: string
+titles: [string]
+post: string
+post_selling_point_ids: [sp-*]
+post_claim_ids: [claim-*]
+carousel_blocks:
+  - id: page-*
+    text: string
+    selling_point_ids: [sp-*]
+    claim_ids: [claim-*]
 ```
 
 ## Method
 
-本 Skill 与 `$xhs-visual-planner` 在一次 compose 调用中共同应用：先形成事实约束和页面任务，再在同一份输出中完成文案与 Prompt，不进行第二轮串行转写。
-
-1. 用户未明确要求选题确认时，从 `strategy_brief.topic_candidates` 自动选择证据最强且最贴合目标用户的方向。
-2. 先建立 `claim_map`，每个事实性表达绑定来源和证据标签。
-3. 根据 `account_voice`、目标用户和选题写出 `voice_fingerprint`。没有账号语气时只确定编辑态度、句式偏好和 CTA 方式，不虚构个人经历。
-4. 从“参数直入、误区纠正、使用决策、编辑判断”中选择最适合本次内容的 `structure_choice`。结构由素材决定，不得连续使用同一种正文骨架。
-5. 写正文时打破平均分配：不要求每段都同时包含事实、解释、风险和建议；允许某段只给判断，下一段再补证据。
-6. 产品安全、健康和使用步骤必须保留，但不要把全文写成从参数到注意事项依次讲解的说明书。
-7. 生成利益型、问题型、场景型、对比型、结果型标题候选；只选择与正文一致的方向。
-8. CTA 可以是问题、建议或直接结束。不得固定使用“三选一问题”收尾。
-9. 封面只承诺正文能兑现的信息。
-10. 轮播每页只承担一个信息任务，并记录对应图片 ID；只保留明显不同的信息和视觉任务，不追求固定页数。
-11. 图片方案优先使用客户真实产品图；信息图只表达结构，不改变产品事实。
-12. 在同一次输出中提供 `visual_brief`，供 `$xhs-visual-planner` 规则生成 Prompt，不调用生图接口。
-13. 将文案、封面、轮播和视觉任务合并为 `complete_content_package`，不得在此后分批追加语义内容。
+1. 在同一次 compose 中生成完整小红书文案、候选标题、轮播结构、全部最终生图
+   Prompt 和每页参考图对应关系，不允许拆成第二次模型调用。
+2. 只写 `selected_topic_id` 指向的方向，不重新选题，不新增事实。
+3. `titles` 至少生成 5 个候选标题，并在收益、问题、场景、对比、结果五类角度中
+   覆盖至少 4 类；少于 5 个不得提交。
+4. `post` 必须是可直接发布的最终正文字符串。禁止把 `briefing`、`claim`、
+   `claim_ids`、卖点追溯字段或其他内部结构化对象当作正文。
+5. 候选标题、正文和轮播块只使用已声明的 `claim_ids` 与
+   `selling_point_ids`。
+6. 正文使用 `post_selling_point_ids` 和 `post_claim_ids` 记录完整追溯关系。
+   所有 `must_use: true` 的卖点必须同时进入正文追溯字段，并至少被一个
+   `carousel_blocks` 项引用。
+7. `locked_wording` 不得改义；`forbidden_expansions` 中的夸大、替换和未证实
+   扩写不得出现。`locked_terms` 只要求在提及时保持准确，不要求全部写入标题、
+   正文或轮播；`unresolved_fields` 中的值不得自行补全。
+8. 产品名称、型号、规格和变体一旦出现，必须与 `product_identity` 保持一致；
+   官方页面标题、货号和内部身份字段仅在消费者确实需要时才写入成稿。
+9. 将事实改写成用户场景，将产品特征改写成具体收益，将限制条件改写成自然的
+   购买或使用建议。不要照抄证据句，不要把参数逐条列成产品说明书。
+10. 标题、正文和轮播不得出现“先锁定产品身份”“官方页面标题”“来源台账”
+   “事实边界”等内部工作流语言，也不得输出字段名或审核过程。
+11. 正文保持自然编辑节奏，不虚构第一人称实测经历，不固定使用三选一 CTA；
+   禁止机械套用“表面上……但背后……”对照、强行升华或反复总结同一结论。
+12. 标题候选保持不同切入点，但都必须与正文和选题一致。
+13. 每个轮播块只承担一个信息任务，页数取最小必要集合。
+14. 每个轮播块默认只提供 2 组、最多 3 组短中文文案。未经用户或选题明确要求，
+   禁止自行创造“第一关”“第二关”“闯关”“关卡”“步骤一”等阶段标签，也
+   不得把参数拆成 4 到 5 行技术清单。
+15. 文案和全部最终 Prompt 必须在同一次 compose 调用中完成；本 Skill 输出
+   `content.json`，同一调用同时由 `$xhs-visual-planner` 输出 `visual.json`。
 
 ## Required References
 

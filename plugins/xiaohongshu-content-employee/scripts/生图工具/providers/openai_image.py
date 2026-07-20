@@ -106,7 +106,7 @@ def build_request(
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "Xiaohongshu-Content-Employee/2.0.0",
+            "User-Agent": "Xiaohongshu-Content-Employee/2.0.1",
         },
         "body": {
             "model": model,

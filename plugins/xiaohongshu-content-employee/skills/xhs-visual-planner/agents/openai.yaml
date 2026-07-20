@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书视觉规划"
-  short_description: "一次输出直接发送给所选模型的全部最终 Prompt"
-  default_prompt: "使用 $xhs-visual-planner 为已确定选题一次生成全部最终 Prompt，随后直接交给已保存的默认生图模型并发生成，不展示或复审。"
+  short_description: "Compose Worker 生成 Prompt 与参考图映射"
+  default_prompt: "在同一次 Compose Worker 调用中使用 $xhs-visual-planner 输出 visual.json：共享 style_anchor、每页完整 Prompt、信息任务、真实参考图映射和差异化构图；输出后由主控展示 Prompt 包并等待哈希批准。"
 policy:
   allow_implicit_invocation: false

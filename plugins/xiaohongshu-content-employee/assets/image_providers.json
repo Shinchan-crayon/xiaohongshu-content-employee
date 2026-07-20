@@ -11,6 +11,7 @@
         "recommended": "gpt-image-2"
       },
       "default_size": "1536x2048",
+      "supports_reference_images": false,
       "status": "supported"
     },
     {
@@ -23,6 +24,7 @@
         "recommended": "nano-banana-2"
       },
       "default_size": "3:4@2K",
+      "supports_reference_images": false,
       "status": "supported"
     },
     {
@@ -35,6 +37,7 @@
         "recommended": "doubao-seedream-5-0-lite-260128"
       },
       "default_size": "1728x2304",
+      "supports_reference_images": true,
       "status": "supported"
     },
     {
@@ -47,6 +50,7 @@
         "recommended": "gpt-image-2"
       },
       "default_size": "1024x1536",
+      "supports_reference_images": false,
       "status": "supported"
     },
     {
@@ -59,12 +63,14 @@
         "recommended": "gemini-3.1-flash-image"
       },
       "default_size": "3:4@2K",
+      "supports_reference_images": false,
       "status": "supported"
     },
     {
       "id": "custom",
       "name": "其他渠道",
       "status": "guided",
+      "supports_reference_images": false,
       "restricted": true
     }
   ]

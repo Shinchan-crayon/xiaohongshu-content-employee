@@ -44,7 +44,7 @@ def build_request(config: dict, prompt: str, size: str, quality: str) -> dict:
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
             "Accept": "*/*",
-            "User-Agent": "curl/8.7.1",
+            "User-Agent": "Xiaohongshu-Content-Employee/2.0.1",
         },
         "body": {
             "model": config["model"],

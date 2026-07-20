@@ -1,0 +1,357 @@
+{
+  "schema_version": 1,
+  "run_id_pattern": "^xhs-[0-9]{8}T[0-9]{12}Z-[0-9a-f]{8}$",
+  "id_patterns": {
+    "reference": "^ref-[a-z0-9][a-z0-9-]{0,63}$",
+    "selling_point": "^sp-[a-z0-9][a-z0-9-]{0,63}$",
+    "claim": "^claim-[a-z0-9][a-z0-9-]{0,63}$",
+    "source": "^source-[a-z0-9][a-z0-9-]{0,63}$",
+    "topic": "^topic-[a-z0-9][a-z0-9-]{0,63}$",
+    "page": "^page-[a-z0-9][a-z0-9-]{0,63}$",
+    "request": "^req-page-[a-z0-9][a-z0-9-]{0,63}-[0-9a-f]{8}$"
+  },
+  "state_machine": {
+    "path": [
+      "created",
+      "prepared",
+      "evidenced",
+      "composed",
+      "prompt_pending_approval",
+      "prompt_approved",
+      "producing",
+      "delivered",
+      "completed"
+    ],
+    "approval_invalidation": {
+      "from": "prompt_approved",
+      "to": "prompt_pending_approval",
+      "reason": "prompt_package_changed"
+    }
+  },
+  "workers": {
+    "research-worker": {
+      "start_stage": "created",
+      "worker_session_id_required": true,
+      "fork_context": false,
+      "create_count": 1,
+      "wait_count": 1,
+      "close_count": 1,
+      "loaded_skills": [
+        "product-material-intake",
+        "xhs-research-strategy"
+      ],
+      "input_artifacts": [
+        "task.json"
+      ],
+      "allowed_external_inputs": [
+        "task.product_links",
+        "task.product_images",
+        "task.material_paths"
+      ],
+      "output_artifacts": [
+        "material.json",
+        "evidence.json"
+      ],
+      "exact_model_calls": 1
+    },
+    "compose-worker": {
+      "start_stage": "evidenced",
+      "worker_session_id_required": true,
+      "fork_context": false,
+      "create_count": 1,
+      "wait_count": 1,
+      "close_count": 1,
+      "loaded_skills": [
+        "xhs-copy-storyboard",
+        "xhs-visual-planner"
+      ],
+      "input_artifacts": [
+        "material.json",
+        "evidence.json"
+      ],
+      "allowed_external_inputs": [],
+      "output_artifacts": [
+        "content.json",
+        "visual.json"
+      ],
+      "exact_model_calls": 1
+    }
+  },
+  "executors": {
+    "produce-executor": {
+      "start_stage": "producing",
+      "worker_session_id_required": false,
+      "loaded_skills": [],
+      "input_artifacts": [
+        "visual.json",
+        "approval.json"
+      ],
+      "allowed_external_inputs": [
+        "saved_provider_config",
+        "visual.pages.reference_image_paths"
+      ],
+      "output_artifacts": [
+        "generation.json"
+      ],
+      "exact_model_calls": 0
+    },
+    "deliver-executor": {
+      "start_stage": "producing",
+      "requires_completed_stage": "produce-executor",
+      "worker_session_id_required": false,
+      "loaded_skills": [],
+      "input_artifacts": [
+        "content.json",
+        "visual.json",
+        "generation.json"
+      ],
+      "allowed_external_inputs": [],
+      "output_artifacts": [
+        "delivery.json"
+      ],
+      "output_files": [
+        "html_path",
+        "runtime_log_path"
+      ],
+      "exact_model_calls": 0
+    }
+  },
+  "artifacts": {
+    "task.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "summary",
+        "content_goal"
+      ]
+    },
+    "material.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "product_identity",
+        "product_reference_pack",
+        "selling_points",
+        "conflicts",
+        "missing_material"
+      ],
+      "nested_required": {
+        "product_identity": [
+          "source_url",
+          "exact_page_title",
+          "brand",
+          "name",
+          "model",
+          "variant",
+          "category",
+          "identifying_terms",
+          "unresolved_fields",
+          "locked_terms",
+          "forbidden_replacements"
+        ]
+      },
+      "item_required": {
+        "product_reference_pack": [
+          "id",
+          "path",
+          "role",
+          "supported_views",
+          "source_claim_ids"
+        ],
+        "selling_points": [
+          "id",
+          "product_feature",
+          "user_problem",
+          "user_benefit",
+          "usage_scenario",
+          "source_claim_ids",
+          "locked_wording",
+          "priority",
+          "must_use",
+          "forbidden_expansions"
+        ]
+      }
+    },
+    "evidence.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "claims",
+        "sources",
+        "topic_candidates",
+        "selected_topic_id"
+      ]
+    },
+    "content.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "titles",
+        "post",
+        "post_selling_point_ids",
+        "post_claim_ids",
+        "carousel_blocks"
+      ],
+      "semantic_rules": {
+        "minimum_title_count": 5,
+        "locked_terms_required_in_visible_copy": false,
+        "locked_terms_must_remain_exact_when_used": true,
+        "unresolved_fields_must_not_be_invented": true,
+        "forbidden_replacements_apply_to": [
+          "titles",
+          "post",
+          "carousel_blocks.text"
+        ],
+        "internal_workflow_language_forbidden_in": [
+          "titles",
+          "post",
+          "carousel_blocks.text"
+        ]
+      }
+    },
+    "visual.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "style_anchor",
+        "pages"
+      ],
+      "item_required": {
+        "pages": [
+          "id",
+          "page_role",
+          "shot_type",
+          "subject_position",
+          "subject_scale",
+          "background_scene",
+          "text_zone",
+          "information_task",
+          "prompt",
+          "product_subject",
+          "product_view",
+          "reference_image_ids",
+          "reference_image_paths",
+          "selling_point_ids",
+          "claim_ids"
+        ]
+      }
+    },
+    "approval.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "status",
+        "prompt_hash",
+        "displayed_at",
+        "approved_at",
+        "approved_by"
+      ]
+    },
+    "generation.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "status",
+        "items"
+      ],
+      "item_required": {
+        "items": [
+          "request_id",
+          "page_id",
+          "provider",
+          "model",
+          "request_status",
+          "started_at",
+          "response_received_at",
+          "download_started_at",
+          "completed_at",
+          "attempt",
+          "token_count",
+          "cost_amount",
+          "cost_currency",
+          "error"
+        ]
+      }
+    },
+    "delivery.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "html_path",
+        "runtime_log_path",
+        "generation_status",
+        "completed_at"
+      ]
+    },
+    "runtime.json": {
+      "required": [
+        "schema_version",
+        "run_id",
+        "task_summary",
+        "stage",
+        "approval_status",
+        "default_image_provider",
+        "default_image_model",
+        "artifacts",
+        "worker_sessions",
+        "delivery_paths",
+        "stage_metrics"
+      ]
+    }
+  },
+  "next_stage_allowed_fields": {
+    "research-worker": {
+      "task.json": [
+        "summary",
+        "content_goal",
+        "product_links",
+        "product_images",
+        "material_paths",
+        "target_audience",
+        "account_voice"
+      ]
+    },
+    "compose-worker": {
+      "material.json": [
+        "product_identity",
+        "product_reference_pack",
+        "selling_points"
+      ],
+      "evidence.json": [
+        "claims",
+        "sources",
+        "topic_candidates",
+        "selected_topic_id"
+      ]
+    },
+    "produce-executor": {
+      "visual.json": [
+        "style_anchor",
+        "pages"
+      ],
+      "approval.json": [
+        "status",
+        "prompt_hash",
+        "approved_at",
+        "approved_by"
+      ]
+    },
+    "deliver-executor": {
+      "content.json": [
+        "titles",
+        "post",
+        "post_selling_point_ids",
+        "post_claim_ids",
+        "carousel_blocks"
+      ],
+      "visual.json": [
+        "style_anchor",
+        "pages"
+      ],
+      "generation.json": [
+        "status",
+        "items"
+      ]
+    }
+  }
+}

@@ -63,7 +63,7 @@ def build_headers(api_key: str) -> dict:
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "Accept": "*/*",
-        "User-Agent": "Xiaohongshu-Content-Employee/2.0.0",
+        "User-Agent": "Xiaohongshu-Content-Employee/2.0.1",
     }
 
 

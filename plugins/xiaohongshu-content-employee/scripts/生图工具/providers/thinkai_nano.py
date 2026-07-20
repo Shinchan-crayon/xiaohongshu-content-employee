@@ -58,6 +58,7 @@ def build_request(config: dict, prompt: str, size: str, quality: str) -> dict:
             "Authorization": f"Bearer {config['api_key']}",
             "x-goog-api-key": config["api_key"],
             "Content-Type": "application/json",
+            "User-Agent": "Xiaohongshu-Content-Employee/2.0.1",
         },
         "body": {
             "contents": [

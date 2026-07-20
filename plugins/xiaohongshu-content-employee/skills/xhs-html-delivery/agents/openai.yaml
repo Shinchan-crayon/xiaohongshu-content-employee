@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书 HTML 交付"
-  short_description: "一次生成并立即交付独立 HTML"
-  default_prompt: "使用 $xhs-html-delivery 一次生成独立 HTML；命令成功后立即把绝对路径交给用户并结束，不追加检查链。"
+  short_description: "Deliver Executor 生成 HTML 与独立运行日志"
+  default_prompt: "按 $xhs-html-delivery 的程序规范直接运行 Python Deliver Executor；不创建 Worker，不调用内容模型。只读取 content.json、visual.json 和全部请求均 complete 的 generation.json，使用 --embed-images 生成小红书内容 HTML、基于已有数据的独立运行日志和内部 delivery.json。不得为日志增加采集或检查，最终只返回 HTML 与日志两个文件链接。"
 policy:
   allow_implicit_invocation: false

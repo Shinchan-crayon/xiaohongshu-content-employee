@@ -93,11 +93,17 @@ def load_registry(path: Optional[Path] = None) -> dict:
         for alias, model in models.items():
             _require_text(alias, f"渠道 {provider_id} 模型档位")
             _require_text(model, f"渠道 {provider_id} 模型 ID")
+        if not isinstance(provider.get("supports_reference_images"), bool):
+            raise ValueError(
+                f"渠道 {provider_id} supports_reference_images 必须是布尔值。"
+            )
         if "api_key" in provider:
             raise ValueError(f"渠道注册表不得保存 API Key：{provider_id}")
     custom = provider_list[-1]
     if custom.get("id") != "custom" or custom.get("restricted") is not True:
         raise ValueError("其他渠道必须保持受限配置。")
+    if custom.get("supports_reference_images") is not False:
+        raise ValueError("其他渠道不得声明支持产品参考图。")
     return {"providers": providers, "custom": custom}
 
 
@@ -114,6 +120,9 @@ def list_provider_choices(path: Optional[Path] = None) -> list:
                 providers[provider_id]["recommended_model"]
             ],
             "default_size": providers[provider_id]["default_size"],
+            "supports_reference_images": providers[provider_id][
+                "supports_reference_images"
+            ],
         }
         for provider_id in FORMAL_PROVIDER_IDS
     ]
@@ -128,6 +137,16 @@ def get_provider(provider_id: str, path: Optional[Path] = None) -> dict:
     if not isinstance(provider, dict):
         raise ValueError(f"不支持的正式图片渠道：{provider_id}")
     return {"id": normalized, **provider}
+
+
+def provider_supports_reference_images(
+    provider_id: str,
+    path: Optional[Path] = None,
+) -> bool:
+    normalized = normalize_provider_id(provider_id)
+    if normalized not in FORMAL_PROVIDER_IDS:
+        return False
+    return bool(get_provider(normalized, path)["supports_reference_images"])
 
 
 def resolve_model(

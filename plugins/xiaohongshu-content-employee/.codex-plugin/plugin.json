@@ -1,7 +1,7 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "2.0.0",
-  "description": "跨 Codex、Claude Code 和 Hermes 使用，首次选择生图模型后复用默认项，全量并发生图并立即交付 HTML 的小红书内容工作流。",
+  "version": "2.0.1",
+  "description": "跨 Codex、Claude Code 和 Hermes 使用，以两个无历史模型 Worker 和两个 Python Executor 完成商品研究、Prompt 批准、并发生图、内嵌图片 HTML 与独立运行日志交付的小红书内容工作流。",
   "author": {
     "name": "ThinkAI",
     "url": "https://www.thinkai.tv"
@@ -10,8 +10,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "小红书内容员工",
-    "shortDescription": "首次选模型，整批并发生图并直出 HTML",
-    "longDescription": "首次使用列出全部图片渠道和具体模型供用户选择并保存，后续自动复用默认项；选题确定后，整批 Prompt 直接并发发送给所选模型，图片返回后立即生成并交付 HTML，不追加复审或验收链。",
+    "shortDescription": "锁定产品，批准 Prompt 后并发生图并交付",
+    "longDescription": "首次使用列出图片渠道和具体模型供用户选择并保存，后续自动复用默认项；Research Worker 一次完成商品研究、身份锁定和证据提取，Compose Worker 一次生成可发布正文、至少五个标题与最终 Prompt，展示 Prompt 和参考图关系并等待批准；批准后由 Produce Executor 并发生图，再由 Deliver Executor 生成内嵌图片 HTML 与独立运行日志。",
     "developerName": "ThinkAI",
     "category": "Productivity",
     "capabilities": [
@@ -23,8 +23,8 @@
     ],
     "defaultPrompt": [
       "使用 $xhs-content-employee 根据这些产品素材制作一套小红书图文内容；首次使用先列出生图渠道和具体模型供我选择并保存。",
-      "沿用已保存的默认生图模型，将整批 Prompt 直接并发发送，不展示或复审 Prompt。",
-      "整批图片返回后立即输出 HTML，不启动子 Agent，不打开或验收图片，不执行浏览器、截图、安全审计或最终检查链。"
+      "先锁定产品身份并提取证据，在同一次 Compose 调用中生成文案和全部最终 Prompt，然后展示 Prompt 与参考图关系供我批准。",
+      "批准哈希有效后并发生成全部计划图片，全部完成后输出图片内嵌的内容 HTML 与独立运行日志，然后停止。"
     ],
     "brandColor": "#FF4D6D",
     "composerIcon": "./assets/plugin-icon.png",

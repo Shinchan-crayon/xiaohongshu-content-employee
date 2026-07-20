@@ -1,6 +1,6 @@
 interface:
   display_name: "产品素材接收"
-  short_description: "提取产品事实、图片用途、受众和禁止改写项，发现素材缺口"
-  default_prompt: "使用 $product-material-intake 整理这批产品材料并标记事实、假设和缺失项。"
+  short_description: "Research Worker 锁定产品身份并整理 material.json"
+  default_prompt: "在独立无历史 Research Worker 的唯一一次模型调用中，同时使用 $product-material-intake 和 $xhs-research-strategy；只读取 task.json 声明字段和产品素材，先锁定完整 product_identity、真实参考图及四段卖点链，再生成证据与选题，输出 material.json 和 evidence.json。locked_terms 只约束提及时不得写错，不要求逐项进入成稿。"
 policy:
   allow_implicit_invocation: false

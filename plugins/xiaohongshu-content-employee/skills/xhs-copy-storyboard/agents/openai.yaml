@@ -1,6 +1,6 @@
 interface:
   display_name: "小红书文案与轮播"
-  short_description: "生成标题、正文、标签、封面文案、逐页脚本和图片方案"
-  default_prompt: "使用 $xhs-copy-storyboard 根据已确认选题生成完整小红书内容包。"
+  short_description: "Compose Worker 一次生成可追溯文案"
+  default_prompt: "在独立无历史 Compose Worker 中同时使用 $xhs-copy-storyboard 和 $xhs-visual-planner；只读取 material.json 与 evidence.json，在一次 compose 模型调用中生成可直接发布的最终正文、至少 5 个且覆盖至少 4 类角度的候选标题、轮播结构和全部最终 Prompt。把事实改写成用户场景、特征改写成具体收益、限制改写成自然建议；不要写成说明书，不虚构实测，不使用内部审核语言、机械对照或强行升华。locked_terms 只约束提及时准确，不要求逐项进入成稿。"
 policy:
   allow_implicit_invocation: false

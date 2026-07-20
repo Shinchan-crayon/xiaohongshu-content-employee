@@ -54,6 +54,10 @@ IMAGE_GENERATION_RUNTIME_FILES = (
     Path("scripts") / "生图工具" / "providers" / "thinkai_nano.py",
     Path("scripts") / "生图工具" / "providers" / "volcengine.py",
 )
+WORKFLOW_RUNTIME_FILES = (
+    Path("assets") / "workflow-contracts.json",
+    Path("scripts") / "工作流工具" / "workflow_runtime.py",
+)
 
 SCRIPT_PATH = Path(__file__).resolve()
 PACKAGE_ROOT = SCRIPT_PATH.parents[2]
@@ -119,6 +123,12 @@ def skill_resource_paths(source_skill_dir: Path, skill_text: str) -> Set[Path]:
         "xhs-approved-image-generator",
     }:
         resources.update(IMAGE_GENERATION_RUNTIME_FILES)
+    if source_skill_dir.name in {
+        "xhs-content-employee",
+        "xhs-approved-image-generator",
+        "xhs-html-delivery",
+    }:
+        resources.update(WORKFLOW_RUNTIME_FILES)
 
     return resources
 
@@ -186,6 +196,17 @@ def verify_staged_skill(skill_dir: Path) -> None:
             if not (skill_dir / runtime_file).is_file():
                 raise InstallError(
                     f"{skill_dir.name} is missing image runtime file: "
+                    f"{runtime_file.as_posix()}"
+                )
+    if skill_dir.name in {
+        "xhs-content-employee",
+        "xhs-approved-image-generator",
+        "xhs-html-delivery",
+    }:
+        for runtime_file in WORKFLOW_RUNTIME_FILES:
+            if not (skill_dir / runtime_file).is_file():
+                raise InstallError(
+                    f"{skill_dir.name} is missing workflow runtime file: "
                     f"{runtime_file.as_posix()}"
                 )
 
