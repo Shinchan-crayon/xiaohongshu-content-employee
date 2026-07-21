@@ -1,58 +1,99 @@
 ---
 name: xhs-humanize-review
-description: 对小红书标题、正文和轮播文案降低 AI 痕迹，保留既有 JSON 结构、排版和追溯字段，只改可见文字。
+description: 独立 Humanize Worker，在 Compose Worker 后执行一次模型调用，对小红书正文、标题和轮播文案降低 AI 痕迹。
 ---
 
 # Humanize Xiaohongshu Copy
 
-## Scope
+## 位置
 
-Humanize Worker receives `material.json`, `evidence.json`, and an existing
-`content.json` after Compose. It rewrites `content.json` in place exactly once.
-
-Only edit these visible-copy fields:
+Compose Worker 输出 `content.json` 后、程序校验前，对以下字段逐一遍历：
 
 - `titles[]`
 - `post`
 - `carousel_blocks[].text`
 
-Do not change the JSON shape, add or remove fields, reorder arrays, alter
-paragraph formatting, or modify any IDs, including `post_selling_point_ids`,
-`post_claim_ids`, `carousel_blocks[].selling_point_ids`, and
-`carousel_blocks[].claim_ids`. Do not read or modify `visual.json`.
+不改 JSON 结构、不新增字段、不改变 `post_claim_ids` 等追溯字段。
 
-## Rewrite Rules
+## AI 痕迹检测与替换
 
-Remove mechanical structures such as "表面上...但背后...", "看似...实则...",
-"不仅...更...", "不只是...更是...", "总的来说", "综上所述",
-"首先...其次...最后...", "需要注意的是", and "值得一提的是". Keep the
-meaning, express points directly, and stop on concrete information instead of
-adding a forced concluding uplift.
+### 结构
 
-Replace or remove inflated wording such as "极致", "非凡", "卓越", "前所未有",
-"惊艳", "完美解决", "彻底改变", "颠覆", "革命性", "赋能", "加持",
-"升级体验", "焕新", "不可否认", "毋庸置疑", "毫无疑问", "绝绝子",
-"yyds", "简直是", "堪称", "闭眼入", "无脑冲", and "必入". Prefer
-specific everyday use, a plain judgment, or a direct product benefit.
+| 痕迹 | 处理 |
+|------|------|
+| "表面上…但背后…" / "看似…实则…" | 删除整句，各自独立表达 |
+| "不仅…更…" / "不只是…更是…" | 拆成两句，或删掉"不仅" |
+| "总的来说" / "综上所述" / "总而言之" | 删掉，直接结束 |
+| "首先…其次…最后…" | 保留内容，删除序列词 |
+| "需要注意的是" / "值得关注的是" / "值得一提的是" | 删除，直接说事 |
+| 每段都以同一句式开头 | 相邻段换主语或换句式 |
+| 强行升华的结尾段落 | 删掉，停在具体信息上 |
 
-Vary repeated openings and sentence patterns: do not leave more than three
-consecutive sentences beginning with "你", more than two consecutive rhetorical
-questions, or a mechanically fixed CTA ending. Reduce repeated em dashes and
-repeated "但" or "但是" within a paragraph where doing so improves fluency.
-Do not impose sentence-length limits, punctuation rules, paragraph splitting,
-or any other formatting normalization.
+### 用词
 
-Visible copy may freely use an account voice, invented everyday scenes,
-first-person experience, social proof, comparisons, opinions, or engagement
-hooks when these make the text feel more lived-in. When the draft uses "很多人",
-"大家都", or "不少人反映", it may be rewritten as "我周围有朋友" as an
-account-voice engagement device. There is no evidence gate for rewriting text.
+| 痕迹 | 替换方向 |
+|------|---------|
+| 极致 / 非凡 / 卓越 / 前所未有 / 惊艳 | 删掉，用具体场景替代 |
+| 完美解决 / 彻底改变 / 颠覆 / 革命性 | 改成"解决了一个问题：…" |
+| 赋能 / 加持 / 升级体验 / 焕新 | 改成人话：具体能做什么 |
+| 不可否认 / 毋庸置疑 / 毫无疑问 | 删掉 |
+| 实在是太…了 / 真的非常… | 删掉"实在是""真的非常"，保留后面的词 |
+| 绝绝子 / yyds | 删掉，用正常中文替代 |
+| 简直是 / 堪称 | 改成"是" |
+| 闭眼入 / 无脑冲 / 必入 | 改成"值得考虑"或删掉 |
+| "宝子们" / "姐妹们" 开头 | 只在账号语气明确要求时保留，否则删掉 |
 
-## Preserve
+### 句式
 
-Keep all existing fields, IDs, array order, and paragraph layout intact. Do not
-change the JSON structure or visual Prompt. Natural subjective language,
-invented personal experience, and one or more closing questions may remain.
+| 痕迹 | 处理 |
+|------|------|
+| 连续超过 3 句以"你"开头 | 换主语或换句式 |
+| 连续超过 2 句反问结尾 | 留一句，其余改陈述 |
+| 三选一 CTA 固定收尾（"你会选A还是B还是C？"） | 可提问、可建议、也可直接结束 |
+| 破折号在相邻 3 句内出现超过 2 次 | 改用句号断开 |
+| 同一段内超过 2 个"但" / "但是" | 合并或删掉一个 |
+| 句句都用"了"结尾（太像口播稿） | 同段最多保留 2 处 |
 
-Use concrete life scenes over abstract claims, keep each paragraph's existing
-format, and make no detector score, report artifact, retry, or second review.
+### 数据与事实
+
+| 痕迹 | 处理 |
+|------|------|
+| 正文中出现没有来源的数字（销量、评分、价格对比） | 如 evidence 中没有对应 claim，删除 |
+| "据说" / "有数据显示" / "调查显示" | 改成具体来源或删除 |
+| "很多人" / "大家都" / "不少人反映" | 改成"我周围有朋友"或直接删掉 |
+
+## 绝对不删的内容（最高优先级，覆盖所有删除规则）
+
+以下任何一类内容，即使看起来啰嗦、像套话、像说明书，也必须原样保留。只能调整表达方式让语气更自然，不能删减信息量：
+
+- 产品名称、型号、价格 — 来自 locked_terms
+- 具体功能描述 — 如"主动降噪可减弱低频环境噪音""单次充电聆听时间最长可达 4 小时"
+- 适用条件 — 如"需搭配 iOS 18 及以上系统"
+- 使用场景 — 如"通勤、办公、临时对话时"
+- 用户收益 — 如"不必频繁在档位之间来回切"
+- 数字、百分比、时间 — 任何可验证数据
+- 与 evidence.json 中 claims 对应的段落整段保留
+- 安全警告、健康提示
+- 用户明确要求保留的段落
+
+不确定一段话该不该删时，保留原样。
+
+## 不属于 AI 痕迹、不需要改的
+
+以下内容保留原样：
+
+- 真实的个人经历叙述（前提是 evidence 中有对应来源）
+- "我觉得" / "我认为" 等表达主观判断的正常句式
+- 疑问句收尾（只要不是连续反问）
+
+## 编辑风格
+
+- 举例用具体生活场景，不用抽象概念
+- 允许直接下判断（"值""不值""适合""不适合"），不回避立场
+- 每段可以有独立节奏：某段只给判断，下一段再补证据
+- 不虚构"亲测""用了几天""老实说"等个人经历
+
+## 不被误删的内容
+
+- locked_wording 里的受限制表述（如"最长可达"）不能因为"听起来像免责声明"而被删除
+- claims 中的事实边界（如"官网称"）保留，但可以调整位置让它不打断阅读节奏
