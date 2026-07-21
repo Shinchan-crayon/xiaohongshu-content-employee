@@ -84,7 +84,7 @@ created
 
 ## 首次选择生图模型
 
-第一次使用时，插件会列出 ThinkAI Image 2、ThinkAI Nano、火山引擎
+第一次使用时，插件会列出 ThinkAI GPT Image 2 4K、ThinkAI Nano、火山引擎
 Seedream、OpenAI GPT Image、Google Nano Banana 和自定义渠道，并同时显示
 具体模型与默认尺寸。用户选择并配置后保存为默认项，后续直接复用。
 

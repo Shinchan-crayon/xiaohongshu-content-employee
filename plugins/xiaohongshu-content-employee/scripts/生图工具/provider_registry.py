@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 PLUGIN_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY_PATH = PLUGIN_ROOT / "assets" / "image_providers.json"
 FORMAL_PROVIDER_IDS = (
-    "thinkai-image-2",
+    "thinkai-gpt-image-2-4k",
     "thinkai-nano",
     "seedream",
     "openai-gpt-image",
@@ -18,8 +18,6 @@ FORMAL_PROVIDER_IDS = (
 )
 USER_CHOICE_IDS = (*FORMAL_PROVIDER_IDS, "custom")
 LEGACY_PROVIDER_ALIASES = {
-    "thinkai": "thinkai-image-2",
-    "thinkai-image2": "thinkai-image-2",
     "volcengine": "seedream",
     "openai": "openai-gpt-image",
     "google": "google-nano-banana",
@@ -61,7 +59,7 @@ def load_registry(path: Optional[Path] = None) -> dict:
     choices = [item.get("id") for item in provider_list if isinstance(item, dict)]
     if choices != list(USER_CHOICE_IDS):
         raise ValueError(
-            "图片渠道菜单必须依次为 ThinkAI Image 2、ThinkAI Nano、"
+            "图片渠道菜单必须依次为 ThinkAI GPT Image 2 4K、ThinkAI Nano、"
             "火山引擎、OpenAI、Google、其他。"
         )
 

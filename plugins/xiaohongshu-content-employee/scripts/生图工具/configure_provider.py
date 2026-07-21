@@ -83,23 +83,14 @@ def save_formal_provider_config(
     skill_root.mkdir(parents=True, exist_ok=True)
     config_path = skill_root / "config.json"
     config = read_existing_config(config_path)
-    if provider_id == "thinkai-image-2":
-        config.update(
-            {
-                "base_url": spec["base_url"],
-                "model": resolve_model("thinkai-image-2", alias),
-                "api_key": normalized_key,
-            }
-        )
-    else:
-        providers = config.get("providers")
-        if not isinstance(providers, dict):
-            providers = {}
-            config["providers"] = providers
-        providers[provider_id] = {
-            "api_key": normalized_key,
-            "model_alias": alias,
-        }
+    providers = config.get("providers")
+    if not isinstance(providers, dict):
+        providers = {}
+        config["providers"] = providers
+    providers[provider_id] = {
+        "api_key": normalized_key,
+        "model_alias": alias,
+    }
     config["default_provider"] = provider_id
     atomic_write(config_path, config)
     return config_path
@@ -205,7 +196,8 @@ def build_parser() -> argparse.ArgumentParser:
         "provider",
         nargs="?",
         help=(
-            "thinkai-image-2、thinkai-nano、seedream、openai-gpt-image、"
+            "thinkai-gpt-image-2-4k、thinkai-nano、seedream、"
+            "openai-gpt-image、"
             "google-nano-banana 或 custom"
         ),
     )

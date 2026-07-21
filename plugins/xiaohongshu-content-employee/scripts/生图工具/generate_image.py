@@ -8,7 +8,6 @@ import base64
 import binascii
 import json
 import math
-import re
 import sys
 from pathlib import Path
 from typing import Callable, Optional
@@ -42,7 +41,7 @@ CONNECT_TIMEOUT_SECONDS = 10
 READ_TIMEOUT_SECONDS = 85
 DOWNLOAD_TIMEOUT_SECONDS = 20
 DEFAULT_QUALITY = {
-    "thinkai-image-2": "hd",
+    "thinkai-gpt-image-2-4k": "hd",
     "openai-gpt-image": "high",
 }
 
@@ -225,7 +224,14 @@ def resolve_request_size(
     adapter: object,
     config: dict,
     provider_spec: Optional[dict],
+    requested_size: Optional[str] = None,
 ) -> str:
+    if requested_size:
+        if provider_id != "thinkai-gpt-image-2-4k":
+            raise GenerationError(
+                "--size 目前仅支持 thinkai-gpt-image-2-4k。"
+            )
+        return adapter.normalize_size(requested_size, provider_spec)
     if provider_spec is not None:
         return adapter.normalize_size(None, provider_spec)
     return adapter.normalize_size(config.get("default_size") or "1024x1536", None)
@@ -256,6 +262,30 @@ def encode_reference_images(
     return encoded_images
 
 
+def load_reference_image_files(
+    reference_image_paths: Optional[list[Path]],
+) -> list[tuple[str, bytes, str]] | None:
+    if not reference_image_paths:
+        return None
+    files = []
+    for reference_image_path in reference_image_paths:
+        path = Path(reference_image_path).expanduser().resolve()
+        if not path.is_file():
+            raise GenerationError(f"产品参考图不存在：{path}")
+        mime = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }.get(path.suffix.lower())
+        if mime is None:
+            raise GenerationError(
+                f"产品参考图只支持 JPEG、PNG 或 WebP：{path.name}"
+            )
+        files.append((path.name, path.read_bytes(), mime))
+    return files
+
+
 def build_request(
     provider_id: str,
     adapter: object,
@@ -272,6 +302,14 @@ def build_request(
             size,
             quality,
             encode_reference_images(reference_image_paths),
+        )
+    if provider_id == "thinkai-gpt-image-2-4k":
+        return adapter.build_request(
+            config,
+            prompt,
+            size,
+            quality,
+            load_reference_image_files(reference_image_paths),
         )
     return adapter.build_request(config, prompt, size, quality)
 
@@ -300,11 +338,18 @@ def redact_secrets(detail: object, request: dict) -> str:
 
 def request_generation(provider_name: str, request: dict) -> dict:
     try:
+        request_kwargs = {
+            "headers": request["headers"],
+            "timeout": (CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS),
+        }
+        if "files" in request:
+            request_kwargs["data"] = request["data"]
+            request_kwargs["files"] = request["files"]
+        else:
+            request_kwargs["json"] = request["body"]
         response = requests.post(
             request["url"],
-            json=request["body"],
-            headers=request["headers"],
-            timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS),
+            **request_kwargs,
         )
         response.raise_for_status()
     except (requests.Timeout, requests.ConnectionError) as exc:
@@ -402,13 +447,6 @@ def recover_download(source_url: str, destination: Path) -> Path:
     return target
 
 
-def dimensions_from_size(size: str) -> tuple[Optional[int], Optional[int]]:
-    match = re.fullmatch(r"(\d+)x(\d+)", str(size or "").strip().lower())
-    if not match:
-        return None, None
-    return int(match.group(1)), int(match.group(2))
-
-
 def generate_image(
     plugin_root: Path,
     prompt: str,
@@ -416,6 +454,7 @@ def generate_image(
     provider: Optional[str] = None,
     reference_image_paths: Optional[list[Path]] = None,
     lifecycle_callback: LifecycleCallback = None,
+    size: Optional[str] = None,
 ) -> dict:
     plugin_root = Path(plugin_root).resolve()
     target_dir = Path(output_dir).expanduser().resolve()
@@ -432,13 +471,19 @@ def generate_image(
         raise GenerationError(
             f"{provider_id} 不支持产品参考图，请改用支持参考图的生图渠道。"
         )
-    size = resolve_request_size(provider_id, adapter, config, provider_spec)
+    requested_size = resolve_request_size(
+        provider_id,
+        adapter,
+        config,
+        provider_spec,
+        size,
+    )
     request = build_request(
         provider_id,
         adapter,
         config,
         final_prompt,
-        size,
+        requested_size,
         reference_image_paths,
     )
     provider_name = str(
@@ -449,7 +494,7 @@ def generate_image(
     lifecycle_base = {
         "provider": provider_id,
         "model": config["model"],
-        "requested_size": size,
+        "requested_size": requested_size,
     }
     emit_lifecycle(
         lifecycle_callback,
@@ -494,7 +539,7 @@ def generate_image(
                 source_value,
                 provider_id,
                 config["model"],
-                size,
+                requested_size,
             )
             emit_lifecycle(
                 lifecycle_callback,
@@ -513,13 +558,10 @@ def generate_image(
         raise
     image_path = target_dir / f"image{extension}"
     image_path.write_bytes(image_bytes)
-    width, height = dimensions_from_size(size)
     return {
         "provider": provider_id,
         "model": config["model"],
-        "requested_size": size,
-        "width": width,
-        "height": height,
+        "requested_size": requested_size,
         "image_path": str(image_path),
         "request_status": "complete",
         **usage_metrics,
@@ -533,6 +575,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--provider", help="临时覆盖 config.json 中的默认渠道")
+    parser.add_argument(
+        "--size",
+        help="ThinkAI 4K 尺寸，例如 16:9@1k 或 4:3@2k",
+    )
     parser.add_argument(
         "--reference-image",
         type=Path,
@@ -552,6 +598,7 @@ def main() -> int:
             prompt=args.prompt,
             output_dir=args.output_dir,
             provider=args.provider,
+            size=args.size,
             reference_image_paths=args.reference_images,
         )
     except Exception as exc:

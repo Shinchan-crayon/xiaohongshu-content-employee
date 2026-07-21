@@ -11,7 +11,7 @@ from providers import (
 
 
 SUPPORTED_PROVIDERS = (
-    "thinkai-image-2",
+    "thinkai-gpt-image-2-4k",
     "thinkai-nano",
     "seedream",
     "openai-gpt-image",
@@ -25,9 +25,7 @@ def get_adapter(provider_id: str):
     if normalized.startswith("custom-"):
         normalized = "custom"
     adapters = {
-        "thinkai": thinkai,
-        "thinkai-image2": thinkai,
-        "thinkai-image-2": thinkai,
+        "thinkai-gpt-image-2-4k": thinkai,
         "thinkai-nano": thinkai_nano,
         "volcengine": volcengine,
         "seedream": volcengine,
