@@ -102,14 +102,18 @@ python3 ../../scripts/生图工具/batch_generate.py \
 11. 只有全部计划图片均为 `complete`，且图片文件实际存在时，才能交给
     `$xhs-html-delivery`。任何图片缺失、失败或状态不确定都禁止交付。
 
-首次使用时，如果 `config.json` 不存在或没有 `default_provider`，先运行：
+首次设置必须在内容流程开始前完成。Produce Executor 不得等到 Prompt 已展示或已
+批准后才要求用户选择模型或配置 API Key。如果 `config.json` 不存在、没有
+`default_provider`，或所选渠道缺少 API Key，停止执行并提示用户返回首次设置完成
+模型选择和 API Key 配置：
 
 ```bash
 python3 ../../scripts/生图工具/configure_provider.py --list
 ```
 
-把完整渠道、模型、默认尺寸和参考图支持情况展示给用户。保存选择后直接复用，
-不再重复询问。切换模型只在用户明确要求时执行。
+把完整渠道、模型、默认尺寸和参考图支持情况展示给用户。用户选择后立即配置并
+保存该渠道的 API Key；完成后直接复用，不再重复询问。切换模型只在用户明确要求
+时执行。
 
 ## Runtime
 
