@@ -532,44 +532,39 @@ def _validate_evidence(
     _ensure_unique(claim_ids, "claims")
     claim_id_set = set(claim_ids)
 
-    topics = _require_list(payload["topic_candidates"], "topic_candidates")
-    topic_ids = []
-    for index, topic in enumerate(topics):
-        item = _require_dict(topic, f"topic_candidates[{index}]")
-        _require_fields(
-            item,
-            ("id", "title", "claim_ids"),
-            f"topic_candidates[{index}]",
-        )
-        topic_ids.append(
-            _validate_id(
-                item["id"],
-                "topic",
-                contracts,
-                f"topic_candidates[{index}].id",
-            )
-        )
-        _require_text(item["title"], f"topic_candidates[{index}].title")
-        for claim_id in _validate_id_list(
-            item["claim_ids"],
-            "claim",
-            contracts,
-            f"topic_candidates[{index}].claim_ids",
-        ):
-            if claim_id not in claim_id_set:
-                raise ValueError(
-                    f"topic_candidates[{index}] 引用了未知事实：{claim_id}"
-                )
-    _ensure_unique(topic_ids, "topic_candidates")
+    # topic_candidates is deprecated — kept optional for backward compat
+    topics = payload.get("topic_candidates")
+    if topics is not None:
+        topics = _require_list(topics, "topic_candidates")
+        for index, topic in enumerate(topics):
+            item = _require_dict(topic, f"topic_candidates[{index}]")
+            _require_fields(item, ("id", "title", "claim_ids"), f"topic_candidates[{index}]")
+            _validate_id(item["id"], "topic", contracts, f"topic_candidates[{index}].id")
+            _require_text(item["title"], f"topic_candidates[{index}].title")
+            for claim_id in _validate_id_list(item["claim_ids"], "claim", contracts, f"topic_candidates[{index}].claim_ids"):
+                if claim_id not in claim_id_set:
+                    raise ValueError(f"topic_candidates[{index}] 引用了未知事实：{claim_id}")
+
     selected_topic_id = _validate_id(
         payload["selected_topic_id"],
         "topic",
         contracts,
         "selected_topic_id",
     )
-    if selected_topic_id not in set(topic_ids):
-        raise ValueError(f"selected_topic_id 不存在：{selected_topic_id}")
+    _require_text(payload["selected_topic_direction"], "selected_topic_direction")
+    _validate_id_list(
+        payload["selected_topic_claim_ids"],
+        "claim",
+        contracts,
+        "selected_topic_claim_ids",
+    )
+    backup = payload.get("backup_topic_brief")
+    if backup is not None and not isinstance(backup, str):
+        raise ValueError("backup_topic_brief 必须是字符串。")
 
+    learning_candidates = _require_list(
+        payload.get("learning_candidates", []), "learning_candidates"
+    )
     material_payload = _load_artifact_if_present(run_dir, "material.json")
     if material_payload is not None:
         for collection_name in ("product_reference_pack", "selling_points"):
@@ -1846,10 +1841,7 @@ def finish_stage(
 
     current_idx = STATE_PATH.index(runtime["stage"]) if runtime["stage"] in STATE_PATH else -1
     if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
-        try:
-            runtime = transition(run_dir, STATE_PATH[current_idx + 1])
-        except ValueError:
-            pass
+        runtime = transition(run_dir, STATE_PATH[current_idx + 1])
 
     return runtime
 
