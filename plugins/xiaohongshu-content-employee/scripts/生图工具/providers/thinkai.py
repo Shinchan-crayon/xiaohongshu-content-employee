@@ -95,7 +95,7 @@ def build_request(
             "headers": {
                 "Authorization": f"Bearer {config['api_key']}",
                 "Accept": "*/*",
-                "User-Agent": "Xiaohongshu-Content-Employee/2.1.1",
+                "User-Agent": "Xiaohongshu-Content-Employee/2.1.2",
             },
             "data": {
                 "model": config["model"],
@@ -116,7 +116,7 @@ def build_request(
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
             "Accept": "*/*",
-            "User-Agent": "Xiaohongshu-Content-Employee/2.1.1",
+            "User-Agent": "Xiaohongshu-Content-Employee/2.1.2",
         },
         "body": {
             "model": config["model"],

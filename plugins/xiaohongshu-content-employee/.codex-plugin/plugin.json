@@ -1,6 +1,6 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "2.1.1+codex.20260721172344",
+  "version": "2.1.2+codex.20260721183629",
   "description": "\u8de8 Codex\u3001Claude Code \u548c Hermes \u4f7f\u7528\uff0c\u4ee5\u4e09\u4e2a\u65e0\u5386\u53f2\u6a21\u578b Worker \u548c\u4e24\u4e2a Python Executor \u5b8c\u6210\u5546\u54c1\u7814\u7a76\u3001\u4e00\u6b21\u6587\u6848\u81ea\u7136\u5316\u3001Prompt \u6279\u51c6\u3001\u5e76\u53d1\u751f\u56fe\u3001\u5185\u5d4c\u56fe\u7247 HTML \u4e0e\u72ec\u7acb\u8fd0\u884c\u65e5\u5fd7\u4ea4\u4ed8\u7684\u5c0f\u7ea2\u4e66\u5185\u5bb9\u5de5\u4f5c\u6d41\u3002",
   "author": {
     "name": "ThinkAI",

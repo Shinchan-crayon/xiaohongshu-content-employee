@@ -154,6 +154,7 @@
         "run_id",
         "product_identity",
         "reference_image_strategy",
+        "visual_identity",
         "product_reference_pack",
         "selling_points",
         "conflicts",

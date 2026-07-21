@@ -90,8 +90,40 @@ learning_candidates:
 - 不补写无来源的热度、销量、效果、趋势、规格、价格或认证。
 - 不要求用户为来源列表逐项确认。
 
+## Content Enrichment（为高质量正文提供素材）
+
+Research Worker 的产出不仅是事实校验表，还要成为 Compose Worker 的素材库。以下内容直接影响正文的「厚度」和可读性：
+
+### 每卖点必收集
+
+在建立每个 `selling_point` 时，同时收集以下写作素材，写入 `evidence.json` 对应 claim 的 `allowed_wording`：
+
+1. **物理可感知数据** — 重量、尺寸、厚度、材质触感、颜色选项等能让人「看到/摸到」的数字
+2. **对比锚点** — 与上一代或同价位产品的关键差异值（如「比上代轻 19g」「续航多 3 小时」）
+3. **典型场景速写** — 这个卖点在什么日常情境下被感知（如「地铁单手回消息」「健身房放口袋里」「出差高铁上」）
+4. **用户习惯变化** — 用了之后生活会有什么不同（如「不再带充电宝」「一根线充所有设备」）
+
+### 禁止贫瘠输入
+
+以下情况会导致 Compose Worker 产出单薄正文，Research Worker 需避免：
+
+- 卖点的 `usage_scenario` 只写了一个抽象的类别词（如 "日常使用"）→ 应写具体情境
+- `locked_wording` 照抄了技术规格书原文 → 应改写为人话，但仍保持事实准确
+- `user_benefit` 和 `user_problem` 是同义反复 → 必须是从问题到收益的真链路
+- 多个卖点使用了同一场景描述 → 每个卖点应有不同的情境切入
+
 ## Required References
 
 - `../../references/审核规则/事实来源规则.md`
 - `../../references/审核规则/虚构内容禁止规则.md`
 - `../../references/小红书内容规范/产品种草规范.md`
+
+## Schema Self-Check（提交前自检）
+
+在写入 `evidence.json` 前，确认以下字段全部满足：
+
+- [ ] `claims` 至少 4 条原子事实
+- [ ] `selected_topic_direction` 字段存在，且只能是 `"parameter_comparison"` 或 `"scenario_seeding"`
+- [ ] `selected_topic_claim_ids` 字段存在，至少包含 1 个已声明的 claim ID
+- [ ] `backup_topic_brief` 必须是**纯字符串**，不是对象 `{topic_id, direction}`。格式：一句描述备用方向，末尾可附 `"备用选题：topic-xxx"`
+- [ ] `learning_candidates` 如无发现，设为 `[]`

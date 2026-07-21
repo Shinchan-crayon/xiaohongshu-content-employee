@@ -11,7 +11,7 @@
       "name": "xiaohongshu-content-employee",
       "source": "./plugins/xiaohongshu-content-employee",
       "description": "三个无历史模型 Worker 完成商品研究、内容生成与一次文案自然化，用户批准最终 Prompt 后由两个 Python Executor 并发生图并交付图片内嵌 HTML 与独立运行日志。",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "author": {
         "name": "ThinkAI"
       },

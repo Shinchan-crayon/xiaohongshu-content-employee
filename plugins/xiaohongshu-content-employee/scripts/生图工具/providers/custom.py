@@ -219,7 +219,7 @@ def _build_headers(config: dict) -> Dict[str, str]:
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "Xiaohongshu-Content-Employee/2.1.1",
+        "User-Agent": "Xiaohongshu-Content-Employee/2.1.2",
     }
     if auth_type == "bearer":
         headers["Authorization"] = f"Bearer {api_key}"

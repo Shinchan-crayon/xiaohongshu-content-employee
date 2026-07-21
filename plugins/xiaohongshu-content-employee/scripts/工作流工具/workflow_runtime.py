@@ -374,6 +374,43 @@ def _validate_material(payload: dict, contracts: dict) -> None:
     if not product_identity["locked_terms"]:
         raise ValueError("product_identity.locked_terms 不能为空。")
 
+    reference_image_strategy = _require_text(
+        payload["reference_image_strategy"],
+        "reference_image_strategy",
+    )
+    if reference_image_strategy not in {
+        "local_reference",
+        "public_product_identity",
+    }:
+        raise ValueError(
+            "reference_image_strategy 必须是 local_reference 或 "
+            "public_product_identity。"
+        )
+    visual_identity = _require_dict(
+        payload["visual_identity"],
+        "visual_identity",
+    )
+    visual_identity_fields = contracts["artifacts"]["material.json"][
+        "nested_required"
+    ]["visual_identity"]
+    _require_fields(
+        visual_identity,
+        visual_identity_fields,
+        "visual_identity",
+    )
+    for field in visual_identity_fields:
+        values = _require_list(
+            visual_identity[field],
+            f"visual_identity.{field}",
+        )
+        for index, value in enumerate(values):
+            _require_text(value, f"visual_identity.{field}[{index}]")
+        if reference_image_strategy == "public_product_identity" and not values:
+            raise ValueError(
+                "public_product_identity 要求 visual_identity."
+                f"{field} 不能为空。"
+            )
+
     references = _require_list(
         payload["product_reference_pack"],
         "product_reference_pack",
@@ -425,6 +462,8 @@ def _validate_material(payload: dict, contracts: dict) -> None:
             f"product_reference_pack[{index}].source_claim_ids",
         )
     _ensure_unique(reference_ids, "product_reference_pack")
+    if reference_image_strategy == "local_reference" and not references:
+        raise ValueError("local_reference 要求 product_reference_pack 不能为空。")
 
     selling_points = _require_list(payload["selling_points"], "selling_points")
     selling_point_ids = []
@@ -633,9 +672,31 @@ def _reject_forbidden_replacements(
         for value in product_identity.get("forbidden_replacements", [])
         if str(value).strip()
     ]
+    protected = {
+        str(value).strip().casefold()
+        for field in ("identifying_terms", "locked_terms")
+        for value in product_identity.get(field, [])
+        if str(value).strip()
+    }
+    protected.update(
+        str(product_identity.get(field) or "").strip().casefold()
+        for field in ("exact_page_title", "brand", "name", "model", "variant")
+        if str(product_identity.get(field) or "").strip()
+    )
     for label, text in texts:
         normalized = text.casefold()
-        matched = [term for term in forbidden if term.casefold() in normalized]
+        matched = []
+        for term in forbidden:
+            normalized_term = term.casefold()
+            searchable = normalized
+            for protected_phrase in protected:
+                if (
+                    normalized_term != protected_phrase
+                    and normalized_term in protected_phrase
+                ):
+                    searchable = searchable.replace(protected_phrase, "")
+            if normalized_term in searchable:
+                matched.append(term)
         if matched:
             raise ValueError(
                 f"{label} 使用了 product_identity.forbidden_replacements "
@@ -757,6 +818,15 @@ def _validate_visual(payload: dict, contracts: dict, run_dir: Path) -> None:
     material_payload = _load_artifact_if_present(run_dir, "material.json")
     if material_payload is None:
         raise ValueError("写入 visual.json 前必须先写入 material.json。")
+    reference_image_strategy = _require_text(
+        material_payload.get("reference_image_strategy"),
+        "material.reference_image_strategy",
+    )
+    if reference_image_strategy not in {
+        "local_reference",
+        "public_product_identity",
+    }:
+        raise ValueError("material.reference_image_strategy 无效。")
     locked_terms = [
         str(value).strip()
         for value in material_payload.get("product_identity", {}).get(
@@ -847,30 +917,54 @@ def _validate_visual(payload: dict, contracts: dict, run_dir: Path) -> None:
                 f"pages[{index}].reference_image_paths[{path_index}]",
             )
         if item["product_subject"]:
-            if not selected_reference_ids or not reference_paths:
-                raise ValueError(
-                    f"pages[{index}] 产品主体页必须绑定真实产品参考图。"
-                )
-            for path_index, reference_path in enumerate(reference_paths):
-                raw_path = Path(reference_path).expanduser()
-                resolved_path = (
-                    raw_path.resolve()
-                    if raw_path.is_absolute()
-                    else (run_dir / raw_path).resolve()
-                )
-                if not resolved_path.is_file():
+            product_view = _require_text(
+                item["product_view"],
+                f"pages[{index}].product_view",
+            )
+            if reference_image_strategy == "local_reference":
+                if not selected_reference_ids or not reference_paths:
                     raise ValueError(
-                        f"pages[{index}].reference_image_paths[{path_index}] "
-                        "对应的真实产品参考图不存在。"
+                        f"pages[{index}] 产品主体页必须绑定真实产品参考图。"
                     )
-            expected_paths = [
-                reference_map[reference_id]["path"]
-                for reference_id in selected_reference_ids
-            ]
-            if reference_paths != expected_paths:
-                raise ValueError(
-                    f"pages[{index}] 参考图路径与 reference_image_ids 不匹配。"
-                )
+                for path_index, reference_path in enumerate(reference_paths):
+                    raw_path = Path(reference_path).expanduser()
+                    resolved_path = (
+                        raw_path.resolve()
+                        if raw_path.is_absolute()
+                        else (run_dir / raw_path).resolve()
+                    )
+                    if not resolved_path.is_file():
+                        raise ValueError(
+                            f"pages[{index}].reference_image_paths[{path_index}] "
+                            "对应的真实产品参考图不存在。"
+                        )
+                expected_paths = [
+                    reference_map[reference_id]["path"]
+                    for reference_id in selected_reference_ids
+                ]
+                if reference_paths != expected_paths:
+                    raise ValueError(
+                        f"pages[{index}] 参考图路径与 reference_image_ids 不匹配。"
+                    )
+                supported_views = set()
+                for reference_id in selected_reference_ids:
+                    supported_views.update(
+                        reference_map[reference_id]["supported_views"]
+                    )
+                if product_view not in supported_views:
+                    raise ValueError(
+                        f"pages[{index}].product_view 不受参考图支持："
+                        f"{product_view}"
+                    )
+            else:
+                if selected_reference_ids or reference_paths:
+                    raise ValueError(
+                        f"pages[{index}] public_product_identity 不接受参考图绑定。"
+                    )
+                if product_view != "identity-only":
+                    raise ValueError(
+                        f"pages[{index}].product_view 必须是 identity-only。"
+                    )
             missing_locked_terms = [
                 term for term in locked_terms if term not in item["prompt"]
             ]
@@ -878,20 +972,6 @@ def _validate_visual(payload: dict, contracts: dict, run_dir: Path) -> None:
                 raise ValueError(
                     f"pages[{index}].prompt 缺少锁定产品身份 locked_terms："
                     + ", ".join(missing_locked_terms)
-                )
-            product_view = _require_text(
-                item["product_view"],
-                f"pages[{index}].product_view",
-            )
-            supported_views = set()
-            for reference_id in selected_reference_ids:
-                supported_views.update(
-                    reference_map[reference_id]["supported_views"]
-                )
-            if product_view not in supported_views:
-                raise ValueError(
-                    f"pages[{index}].product_view 不受参考图支持："
-                    f"{product_view}"
                 )
             composition = tuple(
                 item[field]
@@ -1844,15 +1924,21 @@ def finish_stage(
     _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
 
     if worker_contract is not None:
-        current_idx = (
-            STATE_PATH.index(runtime["stage"])
-            if runtime["stage"] in STATE_PATH
-            else -1
-        )
-        if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
-            runtime = transition(run_dir, STATE_PATH[current_idx + 1])
-        else:
-            _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
+        try:
+            current_idx = (
+                STATE_PATH.index(runtime["stage"])
+                if runtime["stage"] in STATE_PATH
+                else -1
+            )
+            if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
+                runtime = transition(run_dir, STATE_PATH[current_idx + 1])
+            else:
+                _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
+        except Exception:
+            rollback_runtime = load_runtime(run_dir)
+            rollback_runtime["stage_metrics"][stage_name] = stage_metrics
+            _atomic_write_json(run_dir / RUNTIME_FILE, rollback_runtime)
+            raise
     else:
         _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
 

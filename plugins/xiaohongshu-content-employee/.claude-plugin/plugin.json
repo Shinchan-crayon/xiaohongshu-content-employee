@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "xiaohongshu-content-employee",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "面向个人创作者的小红书图文工作流，以三个无历史模型 Worker 和两个 Python Executor 完成商品研究、一次文案自然化、Prompt 批准、并发生图、图片内嵌 HTML 与独立运行日志交付。",
   "author": {
     "name": "ThinkAI",

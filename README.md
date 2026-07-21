@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  ThinkAI · Codex / Claude Code / Hermes · 当前版本 <code>2.1.1</code>
+  ThinkAI · Codex / Claude Code / Hermes · 当前版本 <code>2.1.2</code>
 </p>
 
 ## 效果预览
