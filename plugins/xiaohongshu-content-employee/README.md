@@ -67,6 +67,8 @@ created
 -> prepared
 -> evidenced
 -> composed
+-> humanizing
+-> humanized
 -> prompt_pending_approval
 -> prompt_approved
 -> producing
@@ -107,6 +109,7 @@ python3 scripts/生图工具/configure_provider.py --list
 | `xhs-research-strategy` | 提取证据、卖点和选题 |
 | `xhs-copy-storyboard` | 生成标题、正文、标签和轮播 |
 | `xhs-visual-planner` | 同一次 Compose 调用生成全部最终 Prompt 与参考图关系 |
+| `xhs-humanize-review` | 一次自然化改写标题、正文和轮播可见文字，保留格式、JSON 结构与视觉 Prompt |
 | `xhs-approved-image-generator` | 校验 Prompt 批准哈希后全批并发生图 |
 | `xhs-html-delivery` | 全部计划图片完成后生成默认内嵌图片的 HTML、独立运行日志和交付记录 |
 
