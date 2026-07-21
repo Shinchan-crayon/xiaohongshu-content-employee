@@ -275,9 +275,22 @@ def cmd_finish_worker(args):
     )
 
     runtime = load_runtime(run_dir)
+    current_stage = runtime["stage"]
+
+    # If stage hasn't advanced (auto-advance might have hit a transition error),
+    # try to advance manually to the next stage
+    NEXT_AFTER = {"created": "prepared", "evidenced": "composed", "humanizing": "humanized"}
+    if current_stage in NEXT_AFTER:
+        try:
+            _runtime_cli("transition", "--run-dir", str(run_dir), "--target", NEXT_AFTER[current_stage])
+            runtime = load_runtime(run_dir)
+            current_stage = runtime["stage"]
+        except RuntimeError:
+            pass  # transition might also fail — that's OK, finish-worker did its job
+
     _json_result({
         "status": "worker_finished",
-        "stage": runtime["stage"],
+        "stage": current_stage,
         "worker": worker_name,
         "instruction": f"Run: python scripts/run.py continue --run-dir '{run_dir}'",
     })
@@ -407,16 +420,20 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "setup":
-        cmd_setup(args)
-    elif args.command == "continue":
-        cmd_continue(args)
-    elif args.command == "finish-worker":
-        cmd_finish_worker(args)
-    elif args.command == "approve":
-        cmd_approve(args)
-    else:
-        parser.print_help()
+    try:
+        if args.command == "setup":
+            cmd_setup(args)
+        elif args.command == "continue":
+            cmd_continue(args)
+        elif args.command == "finish-worker":
+            cmd_finish_worker(args)
+        elif args.command == "approve":
+            cmd_approve(args)
+        else:
+            parser.print_help()
+    except (RuntimeError, ValueError, OSError) as exc:
+        _json_result({"status": "error", "error": str(exc)})
+        sys.exit(1)
 
 
 if __name__ == "__main__":
