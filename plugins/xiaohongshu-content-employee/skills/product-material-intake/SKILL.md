@@ -73,8 +73,17 @@ missing_material: [string]
    `exact_page_title` 单独保存为内部来源身份，货号、页面标题等仅在对消费者有用时
    才进入成稿。容易混淆的其他产品、旧款或竞品进入
    `forbidden_replacements`。
-4. 无法确认的字段写入 `unresolved_fields`，后续 Worker 不得自行补全，也不得
-   用相似产品型号、规格或变体补位。
+4. 无法确认的字段写入 `unresolved_fields`，后续 Worker 不得自行补全，也不得\n   用相似产品型号、规格或变体补位。
+
+## 身份锁定分级
+
+Research Worker 按以下优先级处理产品身份，未满足当前级别时不得强行进入下一级：
+
+1. **品牌 + 品类（必须确认）** — 品牌名和产品类型必须来自可验证来源。只有品牌或品类完全无法确认时，才停止 Research Worker 并报告缺失信息。
+2. **型号/口味/规格（尽量确认）** — 优先从来源页面提取。无法核实时写入 `unresolved_fields`，不阻止流程继续。
+3. **配料/包装/产地/重量（可选）** — 有则记录，无则留空或不写入 selling_points。
+
+"口味不确认就不能继续"的情况不应发生。只要品牌和品类能锁定（如"良品铺子 无骨鸡爪"），Research Worker 就必须继续产出 selling_points 和 evidence，缺少的口味/规格标为 `unresolved_fields`。
 5. 用户素材、页面资料或可靠来源发生冲突时写入 `conflicts`，不得自行选择更好写
    的版本。
 
@@ -108,7 +117,7 @@ missing_material: [string]
 
 ## Required References
 
-- `../../references/审核规则/事实来源规则.md`
-- `../../references/审核规则/虚构内容禁止规则.md`
-- `../../references/小红书内容规范/产品种草规范.md`
-- `../../references/小红书内容规范/个性化学习规则.md`
+- `references/审核规则/事实来源规则.md`
+- `references/审核规则/虚构内容禁止规则.md`
+- `references/小红书内容规范/产品种草规范.md`
+- `references/小红书内容规范/个性化学习规则.md`
