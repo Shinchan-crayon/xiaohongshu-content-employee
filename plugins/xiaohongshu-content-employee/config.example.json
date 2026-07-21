@@ -4,6 +4,10 @@
   "model": "gpt-image-2",
   "api_key": "",
   "providers": {
+    "thinkai-gpt-image-2-4k": {
+      "api_key": "",
+      "model_alias": "recommended"
+    },
     "thinkai-nano": {
       "api_key": "",
       "model_alias": "recommended"

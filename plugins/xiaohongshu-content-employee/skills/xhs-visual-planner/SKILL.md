@@ -55,11 +55,14 @@ pages:
 
 ## Product Fidelity
 
-1. 每一个以产品为主体的页面都必须设置 `product_subject: true`，并绑定一张或
-   多张真实产品参考图；该要求不只限于首图。
+1. `reference_image_strategy: local_reference` 时，每一个以产品为主体的页面都
+   必须设置 `product_subject: true`，并绑定一张或多张真实产品参考图；该要求不只
+   限于首图。`public_product_identity` 时，产品主体页可使用
+   `product_view: identity-only`，并保持两个参考图数组为空。
 2. `reference_image_ids` 与 `reference_image_paths` 必须按相同顺序对应
    `material.json` 中的 `product_reference_pack`。
-3. `product_view` 只能选所绑定参考图 `supported_views` 明确支持的视角。
+3. `product_view` 只能选所绑定参考图 `supported_views` 明确支持的视角；身份-only
+   页面不选择具体参考图视角，只保持公开产品身份。
 4. 不得虚构产品背面、包装或内部结构。只有一个可靠视角时保持该视角，通过
    场景、景别、位置和信息任务变化画面。
 5. 不以产品为主体的情境页或信息页可以使用空参考图数组，但不得画出一个无法
@@ -85,7 +88,8 @@ pages:
 2. 当前页的单一信息任务。
 3. 一个真实感场景或清晰视觉方向。
 4. 默认 2 组、最多 3 组短中文文案，以及简短的字体气质。
-5. `3:4` 小红书成品图。
+5. 必须在最终 Prompt 中明确写入 `3:4` 小红书成品图比例；这是发送给生图模型的
+   Prompt 内容，不依赖代码在返回图片后补救尺寸。
 6. “其余构图和场景自由发挥”与“避免纯色信息卡”。
 
 不得要求每张图生成 4 到 5 行精确中文，不得把规格、步骤或卖点逐条排成技术

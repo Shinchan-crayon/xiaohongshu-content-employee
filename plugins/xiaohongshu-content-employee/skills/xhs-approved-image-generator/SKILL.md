@@ -8,7 +8,7 @@ description: Produce Executor 的 Python 执行规范；校验 approval.json 后
 本 Skill 定义 Produce Executor 的 Python 执行规范。该阶段不创建 Worker、不
 加载模型上下文、不接受 `worker_session_id`，`model_calls` 必须为 `0`。程序只
 读取 `visual.json` 和 `approval.json`、已保存的生图渠道配置，以及
-`visual.json` 声明的真实产品参考图；只输出 `generation.json` 和生成图片。
+`visual.json` 声明的可选真实产品参考图；只输出 `generation.json` 和生成图片。
 
 ## Input Contract
 
@@ -83,10 +83,11 @@ python3 ../../scripts/生图工具/batch_generate.py \
 
 1. 使用 `config.json` 保存的默认图片渠道和模型。
 2. 所有页面必须并发提交，`max_workers: 0` 表示全部并发；每页只发起一次初始请求。
-3. 所有产品主体页把完整 `reference_image_paths` 原样传给渠道；仅支持参考图的
-   渠道可执行这类任务。
+3. 把每页 `reference_image_paths` 原样传给渠道；数组非空时仅支持参考图的渠道可
+   执行，identity-only 页保持空数组。
 4. Prompt 原样发送，不在 Produce Executor 中修改已批准内容。
-5. 不运行本地预检、质检、安全审计或图片检查。
+5. 不运行本地预检、质检、安全审计或返回图片的像素尺寸检查；Prompt 中的 `3:4`
+   比例由生图模型直接执行。
 6. 每个图片请求使用独立 `request_id`，按
    `request_started -> response_received -> download_pending -> complete`
    记录时间和状态；异常状态为 `failed` 或 `uncertain`。
@@ -100,7 +101,8 @@ python3 ../../scripts/生图工具/batch_generate.py \
    不把运行状态展示给用户。正常内容任务不从中额外生成运行日志、阶段耗时、
    Token 或费用报告。
 11. 只有全部计划图片均为 `complete`，且图片文件实际存在时，才能交给
-    `$xhs-html-delivery`。任何图片缺失、失败或状态不确定都禁止交付。
+    `$xhs-html-delivery`。任何图片缺失、失败或状态不确定都禁止交付；不核对返回
+    图片的具体像素尺寸。
 
 首次设置必须在内容流程开始前完成。Produce Executor 不得等到 Prompt 已展示或已
 批准后才要求用户选择模型或配置 API Key。如果 `config.json` 不存在、没有

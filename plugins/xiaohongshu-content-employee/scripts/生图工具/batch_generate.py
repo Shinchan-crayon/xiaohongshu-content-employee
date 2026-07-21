@@ -514,8 +514,6 @@ def batch_generate(
                     "path": final_path.relative_to(output_root).as_posix(),
                     "provider": result["provider"],
                     "model": result["model"],
-                    "width": result.get("width"),
-                    "height": result.get("height"),
                     "token_count": result.get("token_count"),
                     "token_status": result.get("token_status", "unavailable"),
                     "cost_amount": result.get("cost_amount"),
@@ -550,8 +548,6 @@ def batch_generate(
                     "path": relative_path,
                     "provider": exc.provider,
                     "model": exc.model,
-                    "width": None,
-                    "height": None,
                     "error": str(exc),
                     "source_url": exc.source_url,
                 }
@@ -573,8 +569,6 @@ def batch_generate(
                     "path": None,
                     "provider": selected_provider,
                     "model": None,
-                    "width": None,
-                    "height": None,
                     "error": str(exc),
                 }
             except Exception as exc:
@@ -595,8 +589,6 @@ def batch_generate(
                     "path": None,
                     "provider": selected_provider,
                     "model": None,
-                    "width": None,
-                    "height": None,
                     "error": str(exc) or exc.__class__.__name__,
                 }
 

@@ -100,7 +100,7 @@ def cmd_setup(args):
         "instruction": (
             "Research Worker ready. "
             f"Read {run_dir}/task.json, produce material.json + evidence.json at {run_dir}. "
-            f"Then run: python scripts/run.py continue --run-dir '{run_dir}'"
+            f"Then run: python scripts/run.py finish-worker --run-dir '{run_dir}'"
         ),
     })
 
@@ -148,19 +148,16 @@ def cmd_continue(args):
         inputs = [str(run_dir / f) for f in WORKER_INPUTS[worker_name]]
         sid = f"{worker_name.replace('-worker', '')}-{os.urandom(3).hex()}"
 
-        out = _runtime_cli(
-            "stage-start",
-            "--run-dir", str(run_dir),
-            "--stage", worker_name,
-            *[f"--loaded-skill={s}" for s in skills],
-            *[f"--input={p}" for p in inputs],
-            "--worker-session-id", sid,
-        )
-        try:
-            json.loads(out)  # valid - stage started OK
-        except json.JSONDecodeError:
-            # stage already started → still OK, just tell Codex what to do
-            pass
+        stage_metrics = runtime.get("stage_metrics", {}).get(worker_name)
+        if not isinstance(stage_metrics, dict):
+            _runtime_cli(
+                "stage-start",
+                "--run-dir", str(run_dir),
+                "--stage", worker_name,
+                *[f"--loaded-skill={s}" for s in skills],
+                *[f"--input={p}" for p in inputs],
+                "--worker-session-id", sid,
+            )
 
         _json_result({
             "status": "worker_ready",
@@ -177,12 +174,13 @@ def cmd_continue(args):
         })
         return
 
-    # ── 2. After compose: compose-present → humanizing ──
+    # ── 2. After compose: advance to humanizing ──
     if stage == "composed":
-        # finish compose + trigger humanizing
-        metrics_file = run_dir / "compose-metrics.json"
-        metrics_file.write_text(json.dumps({"token_count": 0, "model_calls": 1, "tool_calls": 0, "retries": 0, "paid_requests": 0}))
-        _runtime_cli("compose-present", "--run-dir", str(run_dir), "--metrics-file", str(metrics_file))
+        _runtime_cli(
+            "transition",
+            "--run-dir", str(run_dir),
+            "--target", "humanizing",
+        )
         _json_result({
             "status": "advanced",
             "stage": "humanizing",
@@ -191,22 +189,21 @@ def cmd_continue(args):
         })
         return
 
-    # ── 3. After humanized → prompt_pending_approval → show prompt ──
+    # ── 3. After humanized → create pending approval and show prompt ──
     if stage == "humanized":
-        _runtime_cli("transition", "--run-dir", str(run_dir), "--target", "prompt_pending_approval")
         out = _runtime_cli("prompt-show", "--run-dir", str(run_dir))
         try:
             pkg = json.loads(out)
         except json.JSONDecodeError:
-            _json_result({"status": "error", "error": out})
+            _json_result({"status": "pending_approval", "stage": stage, "raw": out})
             return
-        pages = [{"page_id": p["page_id"], "prompt": p["prompt"], "information_task": p.get("information_task", "")} for p in pkg.get("pages", [])]
+        pages = [{"page_id": p.get("page_id", ""), "prompt": p.get("prompt", ""), "information_task": p.get("information_task", "")} for p in pkg.get("pages", [])]
         _json_result({
             "status": "pending_approval",
             "prompt_hash": pkg.get("prompt_hash"),
             "style_anchor": pkg.get("style_anchor"),
             "pages": pages,
-            "instruction": f"Review prompts above. To approve: python scripts/run.py approve --run-dir '{run_dir}' --hash '{pkg.get('prompt_hash')}'",
+            "instruction": f"Review prompts. To approve: python scripts/run.py approve --run-dir '{run_dir}' --hash '{pkg.get('prompt_hash')}'",
         })
         return
 
@@ -246,15 +243,13 @@ def cmd_finish_worker(args):
     stage = runtime["stage"]
 
     if stage not in STAGE_WORKER:
-        _json_result({"status": "error", "error": f"No worker to finish at stage {stage}"})
-        return
+        raise RuntimeError(f"No worker to finish at stage {stage}")
 
     worker_name, _ = STAGE_WORKER[stage]
     outputs = [run_dir / f for f in WORKER_OUTPUTS[worker_name]]
     missing = [str(p) for p in outputs if not p.is_file()]
     if missing:
-        _json_result({"status": "error", "error": f"Missing output files: {missing}"})
-        return
+        raise RuntimeError(f"Missing output files: {missing}")
 
     metrics = {
         "token_count": args.tokens or 0,
@@ -276,17 +271,6 @@ def cmd_finish_worker(args):
 
     runtime = load_runtime(run_dir)
     current_stage = runtime["stage"]
-
-    # If stage hasn't advanced (auto-advance might have hit a transition error),
-    # try to advance manually to the next stage
-    NEXT_AFTER = {"created": "prepared", "evidenced": "composed", "humanizing": "humanized"}
-    if current_stage in NEXT_AFTER:
-        try:
-            _runtime_cli("transition", "--run-dir", str(run_dir), "--target", NEXT_AFTER[current_stage])
-            runtime = load_runtime(run_dir)
-            current_stage = runtime["stage"]
-        except RuntimeError:
-            pass  # transition might also fail — that's OK, finish-worker did its job
 
     _json_result({
         "status": "worker_finished",
@@ -321,7 +305,7 @@ def _produce_and_deliver(run_dir: Path, runtime: dict):
     batch_items = []
     for i, page in enumerate(visual.get("pages", [])):
         batch_items.append({
-            "id": f"item-{page['id']}",
+            "id": page["id"],
             "page": i + 1,
             "prompt": page["prompt"],
             "size": "1728x2304",
@@ -330,36 +314,23 @@ def _produce_and_deliver(run_dir: Path, runtime: dict):
     batch_file = run_dir / "batch.json"
     batch_file.write_text(json.dumps({"schema_version": 1, "items": batch_items}, ensure_ascii=False, indent=2))
 
-    subprocess.run(
-        [sys.executable, str(IMAGE_DIR / "batch_generate.py"), "--batch-file", str(batch_file), "--output-root", str(delivery_root)],
+    generation_cp = subprocess.run(
+        [
+            sys.executable,
+            str(IMAGE_DIR / "batch_generate.py"),
+            "--batch-file", str(batch_file),
+            "--output-root", str(delivery_root),
+            "--run-dir", str(run_dir),
+        ],
+        capture_output=True,
+        text=True,
         check=False,
     )
-
-    # Write minimal generation.json so deliver can proceed
-    run_id = runtime["run_id"]
-    image_dir = delivery_root / "images"
-    gen_items = []
-    if image_dir.is_dir():
-        for f in sorted(image_dir.iterdir()):
-            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                pid = f.stem.split("-", 2)[2] if f.stem.count("-") >= 2 else f.stem
-                gen_items.append({
-                    "id": f"req-{pid}-{run_id[-8:]}", "page_id": pid,
-                    "page": int(f.stem.split("-", 1)[0]), "attempt": 1,
-                    "request_status": "complete", "path": f"images/{f.name}",
-                    "provider": "seedream", "model": "doubao-seedream-5-0-lite-260128", "width": 1728, "height": 2304,
-                })
-    generation = {"schema_version": 1, "run_id": run_id, "status": "complete" if gen_items else "failed",
-                   "provider": "seedream", "model": "doubao-seedream-5-0-lite-260128",
-                   "output_root": str(delivery_root), "items": gen_items}
-    (run_dir / "generation.json").write_text(json.dumps(generation, ensure_ascii=False, indent=2))
-
-    # Finish produce-executor
-    _runtime_cli(
-        "stage-finish", "--run-dir", str(run_dir), "--stage", "produce-executor",
-        "--output", f"{run_dir}/generation.json",
-        "--metrics-file", f"{run_dir}/produce-metrics.json",
-    )
+    if generation_cp.returncode != 0:
+        error = generation_cp.stderr.strip() or generation_cp.stdout.strip()
+        raise RuntimeError(
+            f"图片生成失败：{error or f'exit code {generation_cp.returncode}'}"
+        )
 
     # --- deliver ---
     html_path = delivery_root / "小红书图文.html"
@@ -372,25 +343,21 @@ def _produce_and_deliver(run_dir: Path, runtime: dict):
         capture_output=True, text=True, check=False, timeout=120,
     )
 
-    if html_path.is_file():
-        runtime_log = html_path.with_suffix(".run-log.md")
-        _runtime_cli("summary", "--run-dir", str(run_dir), "--output", str(runtime_log))
-
-        _runtime_cli(
-            "stage-finish", "--run-dir", str(run_dir), "--stage", "deliver-executor",
-            "--output", f"{run_dir}/delivery.json",
-            "--metrics-file", f"{run_dir}/deliver-metrics.json",
+    if cp.returncode != 0 or not html_path.is_file():
+        error = cp.stderr.strip() or cp.stdout.strip()
+        raise RuntimeError(
+            f"HTML 交付失败：{error or f'exit code {cp.returncode}'}"
         )
-        _runtime_cli("transition", "--run-dir", str(run_dir), "--target", "delivered")
-        _runtime_cli("transition", "--run-dir", str(run_dir), "--target", "completed")
 
-        _json_result({
-            "status": "completed",
-            "html_path": str(html_path),
-            "runtime_log_path": str(runtime_log),
-        })
-    else:
-        _json_result({"status": "error", "error": cp.stderr or "HTML generation failed"})
+    delivery = json.loads(
+        (run_dir / "delivery.json").read_text(encoding="utf-8")
+    )
+    _json_result({
+        "status": "completed",
+        "stage": load_runtime(run_dir)["stage"],
+        "html_path": delivery["html_path"],
+        "runtime_log_path": delivery["runtime_log_path"],
+    })
 
 
 # ── CLI ─────────────────────────────────────────────────

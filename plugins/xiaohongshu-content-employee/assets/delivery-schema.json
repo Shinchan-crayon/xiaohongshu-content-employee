@@ -114,9 +114,7 @@
             "enum": ["provided", "ai_generated", "derived"]
           },
           "provider": {"type": "string"},
-          "model": {"type": "string"},
-          "width": {"type": "integer"},
-          "height": {"type": "integer"}
+          "model": {"type": "string"}
         },
         "additionalProperties": false
       }

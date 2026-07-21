@@ -153,6 +153,7 @@
         "schema_version",
         "run_id",
         "product_identity",
+        "reference_image_strategy",
         "product_reference_pack",
         "selling_points",
         "conflicts",
@@ -171,6 +172,11 @@
           "unresolved_fields",
           "locked_terms",
           "forbidden_replacements"
+        ],
+        "visual_identity": [
+          "visible_colors",
+          "visible_forms",
+          "distinguishing_features"
         ]
       },
       "item_required": {
@@ -193,6 +199,11 @@
           "must_use",
           "forbidden_expansions"
         ]
+      },
+      "semantic_rules": {
+        "minimum_selling_point_count": 3,
+        "public_product_identity_requires_visual_identity": true,
+        "public_product_identity_does_not_require_reference_images": true
       }
     },
     "evidence.json": {
@@ -201,9 +212,16 @@
         "run_id",
         "claims",
         "sources",
-        "topic_candidates",
-        "selected_topic_id"
-      ]
+        "selected_topic_id",
+        "selected_topic_direction",
+        "selected_topic_claim_ids",
+        "backup_topic_brief"
+      ],
+      "semantic_rules": {
+        "minimum_claim_count": 4,
+        "atomic_claims": true,
+        "maximum_backup_topic_count": 1
+      }
     },
     "content.json": {
       "required": [
@@ -343,8 +361,10 @@
       "evidence.json": [
         "claims",
         "sources",
-        "topic_candidates",
-        "selected_topic_id"
+        "selected_topic_id",
+        "selected_topic_direction",
+        "selected_topic_claim_ids",
+        "backup_topic_brief"
       ]
     },
     "humanize-worker": {
@@ -354,9 +374,7 @@
       ],
       "evidence.json": [
         "claims",
-        "sources",
-        "topic_candidates",
-        "selected_topic_id"
+        "selected_topic_claim_ids"
       ],
       "content.json": [
         "titles",

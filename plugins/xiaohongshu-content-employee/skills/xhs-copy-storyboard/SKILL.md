@@ -24,8 +24,10 @@ evidence:
   run_id: string
   claims: [object]
   sources: [object]
-  topic_candidates: [object]
   selected_topic_id: topic-*
+  selected_topic_direction: parameter_comparison | scenario_seeding
+  selected_topic_claim_ids: [claim-*]
+  backup_topic_brief: string | null
 ```
 
 ## Output Contract
@@ -48,7 +50,8 @@ carousel_blocks:
 
 1. 在同一次 compose 中生成完整小红书文案、候选标题、轮播结构、全部最终生图
    Prompt 和每页参考图对应关系，不允许拆成第二次模型调用。
-2. 只写 `selected_topic_id` 指向的方向，不重新选题，不新增事实。
+2. 只写 `selected_topic_id` 和 `selected_topic_direction` 指向的方向，不重新选题，
+   不新增事实；`backup_topic_brief` 仅作为备用方向提示，不扩写成第二篇方案。
 3. `titles` 至少生成 5 个候选标题，并在收益、问题、场景、对比、结果五类角度中
    覆盖至少 4 类；少于 5 个不得提交。
 4. `post` 必须是可直接发布的最终正文字符串。禁止把 `briefing`、`claim`、

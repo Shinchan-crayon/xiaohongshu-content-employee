@@ -1331,21 +1331,23 @@ def finish_compose(
 ) -> dict:
     run_dir = Path(run_dir).expanduser().resolve()
     runtime = load_runtime(run_dir)
-    if runtime["stage"] != "evidenced":
+    if runtime["stage"] not in {"evidenced", "composed"}:
         raise ValueError(
-            "compose-finish 只能在 evidenced 阶段完成 Compose。"
+            "compose-finish 只能在 evidenced 或 composed 阶段完成 Compose。"
         )
     compose_metrics = runtime["stage_metrics"].get("compose-worker")
     if not isinstance(compose_metrics, dict):
         raise ValueError("compose-worker 尚未启动。")
-    if not compose_metrics.get("finished_at"):
+    if runtime["stage"] == "evidenced" and not compose_metrics.get("finished_at"):
         finish_stage(
             run_dir,
             "compose-worker",
             [run_dir / "content.json", run_dir / "visual.json"],
             metrics,
         )
-    transition(run_dir, "composed")
+    runtime = load_runtime(run_dir)
+    if runtime["stage"] == "evidenced":
+        transition(run_dir, "composed")
     return transition(run_dir, "humanizing")
 
 
@@ -1355,21 +1357,23 @@ def finish_humanize_and_display_prompt(
 ) -> dict:
     run_dir = Path(run_dir).expanduser().resolve()
     runtime = load_runtime(run_dir)
-    if runtime["stage"] != "humanizing":
+    if runtime["stage"] not in {"humanizing", "humanized"}:
         raise ValueError(
-            "humanize-present 只能在 humanizing 阶段完成文案自然化并展示 Prompt。"
+            "humanize-present 只能在 humanizing 或 humanized 阶段完成文案自然化并展示 Prompt。"
         )
     humanize_metrics = runtime["stage_metrics"].get("humanize-worker")
     if not isinstance(humanize_metrics, dict):
         raise ValueError("humanize-worker 尚未启动。")
-    if not humanize_metrics.get("finished_at"):
+    if runtime["stage"] == "humanizing" and not humanize_metrics.get("finished_at"):
         finish_stage(
             run_dir,
             "humanize-worker",
             [run_dir / "content.json"],
             metrics,
         )
-    transition(run_dir, "humanized")
+    runtime = load_runtime(run_dir)
+    if runtime["stage"] == "humanizing":
+        transition(run_dir, "humanized")
     return display_prompt_package(run_dir)
 
 
@@ -1839,9 +1843,16 @@ def finish_stage(
     runtime["stage_metrics"][stage_name] = updated_metrics
     _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
 
-    current_idx = STATE_PATH.index(runtime["stage"]) if runtime["stage"] in STATE_PATH else -1
-    if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
-        runtime = transition(run_dir, STATE_PATH[current_idx + 1])
+    if worker_contract is not None:
+        current_idx = (
+            STATE_PATH.index(runtime["stage"])
+            if runtime["stage"] in STATE_PATH
+            else -1
+        )
+        if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
+            runtime = transition(run_dir, STATE_PATH[current_idx + 1])
+        else:
+            _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
     else:
         _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
 
