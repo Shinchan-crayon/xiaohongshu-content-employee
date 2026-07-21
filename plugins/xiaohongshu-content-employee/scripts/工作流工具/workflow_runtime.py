@@ -1843,6 +1843,14 @@ def finish_stage(
     )
     runtime["stage_metrics"][stage_name] = updated_metrics
     _atomic_write_json(run_dir / RUNTIME_FILE, runtime)
+
+    current_idx = STATE_PATH.index(runtime["stage"]) if runtime["stage"] in STATE_PATH else -1
+    if current_idx >= 0 and current_idx + 1 < len(STATE_PATH):
+        try:
+            runtime = transition(run_dir, STATE_PATH[current_idx + 1])
+        except ValueError:
+            pass
+
     return runtime
 
 
