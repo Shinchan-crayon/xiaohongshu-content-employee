@@ -1,13 +1,14 @@
 {
   "name": "xiaohongshu-content-employee",
-  "version": "2.0.1",
-  "description": "跨 Codex、Claude Code 和 Hermes 使用，以两个无历史模型 Worker 和两个 Python Executor 完成商品研究、Prompt 批准、并发生图、图片内嵌 HTML 与独立运行日志交付的小红书内容工作流。",
+  "version": "2.1.0",
+  "description": "跨 Codex、Claude Code 和 Hermes 使用，以三个无历史模型 Worker 和两个 Python Executor 完成商品研究、一次文案自然化、Prompt 批准、并发生图、图片内嵌 HTML 与独立运行日志交付的小红书内容工作流。",
   "skills": [
     "skills/xhs-content-employee",
     "skills/product-material-intake",
     "skills/xhs-research-strategy",
     "skills/xhs-copy-storyboard",
     "skills/xhs-visual-planner",
+    "skills/xhs-humanize-review",
     "skills/xhs-approved-image-generator",
     "skills/xhs-html-delivery"
   ],

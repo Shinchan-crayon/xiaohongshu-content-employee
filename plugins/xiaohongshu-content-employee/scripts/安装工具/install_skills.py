@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the seven Xiaohongshu content Skills for Codex or Hermes."""
+"""Install the eight Xiaohongshu content Skills for Codex or Hermes."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ EXPECTED_SKILLS = (
     "xhs-research-strategy",
     "xhs-copy-storyboard",
     "xhs-visual-planner",
+    "xhs-humanize-review",
     "xhs-approved-image-generator",
     "xhs-html-delivery",
 )

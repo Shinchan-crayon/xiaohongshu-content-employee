@@ -16,6 +16,8 @@
       "prepared",
       "evidenced",
       "composed",
+      "humanizing",
+      "humanized",
       "prompt_pending_approval",
       "prompt_approved",
       "producing",
@@ -73,6 +75,27 @@
       "output_artifacts": [
         "content.json",
         "visual.json"
+      ],
+      "exact_model_calls": 1
+    },
+    "humanize-worker": {
+      "start_stage": "humanizing",
+      "worker_session_id_required": true,
+      "fork_context": false,
+      "create_count": 1,
+      "wait_count": 1,
+      "close_count": 1,
+      "loaded_skills": [
+        "xhs-humanize-review"
+      ],
+      "input_artifacts": [
+        "material.json",
+        "evidence.json",
+        "content.json"
+      ],
+      "allowed_external_inputs": [],
+      "output_artifacts": [
+        "content.json"
       ],
       "exact_model_calls": 1
     }
@@ -322,6 +345,25 @@
         "sources",
         "topic_candidates",
         "selected_topic_id"
+      ]
+    },
+    "humanize-worker": {
+      "material.json": [
+        "product_identity",
+        "selling_points"
+      ],
+      "evidence.json": [
+        "claims",
+        "sources",
+        "topic_candidates",
+        "selected_topic_id"
+      ],
+      "content.json": [
+        "titles",
+        "post",
+        "post_selling_point_ids",
+        "post_claim_ids",
+        "carousel_blocks"
       ]
     },
     "produce-executor": {

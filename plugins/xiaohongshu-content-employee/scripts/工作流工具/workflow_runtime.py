@@ -38,6 +38,8 @@ STATE_PATH = (
     "prepared",
     "evidenced",
     "composed",
+    "humanizing",
+    "humanized",
     "prompt_pending_approval",
     "prompt_approved",
     "producing",
@@ -57,6 +59,18 @@ REQUIRED_ARTIFACTS = {
         "content.json",
         "visual.json",
     ),
+    "humanizing": (
+        "material.json",
+        "evidence.json",
+        "content.json",
+        "visual.json",
+    ),
+    "humanized": (
+        "material.json",
+        "evidence.json",
+        "content.json",
+        "visual.json",
+    ),
     "prompt_pending_approval": ("visual.json", "approval.json"),
     "prompt_approved": ("visual.json", "approval.json"),
     "producing": ("visual.json", "approval.json"),
@@ -67,6 +81,7 @@ STAGE_TRANSITION_REQUIREMENTS = {
     "prepared": "research-worker",
     "evidenced": "research-worker",
     "composed": "compose-worker",
+    "humanized": "humanize-worker",
     "delivered": "deliver-executor",
 }
 METRIC_FIELDS = (
@@ -79,10 +94,15 @@ METRIC_FIELDS = (
 STAGE_LABELS = {
     "research-worker": "商品研究、身份与证据",
     "compose-worker": "文案与视觉",
+    "humanize-worker": "文案自然化",
     "produce-executor": "并发生图",
     "deliver-executor": "HTML 交付",
 }
-MODEL_WORKER_IDS = ("research-worker", "compose-worker")
+MODEL_WORKER_IDS = (
+    "research-worker",
+    "compose-worker",
+    "humanize-worker",
+)
 EXECUTOR_IDS = ("produce-executor", "deliver-executor")
 INTERNAL_COPY_PHRASES = (
     "先锁定产品身份",
@@ -1275,12 +1295,12 @@ def display_prompt_package(run_dir: Path) -> dict:
     run_dir = Path(run_dir).expanduser().resolve()
     runtime = load_runtime(run_dir)
     if runtime["stage"] not in {
-        "composed",
+        "humanized",
         "prompt_pending_approval",
         "prompt_approved",
     }:
         raise ValueError(
-            "只有 composed 或 Prompt 审批阶段可以展示 Prompt 包。"
+            "只有 humanized 或 Prompt 审批阶段可以展示 Prompt 包。"
         )
     visual = _load_json(run_dir / "visual.json", "visual.json")
     validate_artifact(run_dir, "visual.json", visual)
@@ -1288,7 +1308,7 @@ def display_prompt_package(run_dir: Path) -> dict:
     prompt_hash = compute_prompt_hash(visual)
     approval = _set_pending_approval(run_dir, prompt_hash)
     runtime = load_runtime(run_dir)
-    if runtime["stage"] == "composed":
+    if runtime["stage"] == "humanized":
         transition(run_dir, "prompt_pending_approval")
     elif runtime["stage"] == "prompt_approved":
         runtime["stage"] = "prompt_pending_approval"
@@ -1310,7 +1330,7 @@ def display_prompt_package(run_dir: Path) -> dict:
     }
 
 
-def finish_compose_and_display_prompt(
+def finish_compose(
     run_dir: Path,
     metrics: Optional[dict] = None,
 ) -> dict:
@@ -1318,7 +1338,7 @@ def finish_compose_and_display_prompt(
     runtime = load_runtime(run_dir)
     if runtime["stage"] != "evidenced":
         raise ValueError(
-            "compose-present 只能在 evidenced 阶段完成 Compose 并展示 Prompt。"
+            "compose-finish 只能在 evidenced 阶段完成 Compose。"
         )
     compose_metrics = runtime["stage_metrics"].get("compose-worker")
     if not isinstance(compose_metrics, dict):
@@ -1331,6 +1351,30 @@ def finish_compose_and_display_prompt(
             metrics,
         )
     transition(run_dir, "composed")
+    return transition(run_dir, "humanizing")
+
+
+def finish_humanize_and_display_prompt(
+    run_dir: Path,
+    metrics: Optional[dict] = None,
+) -> dict:
+    run_dir = Path(run_dir).expanduser().resolve()
+    runtime = load_runtime(run_dir)
+    if runtime["stage"] != "humanizing":
+        raise ValueError(
+            "humanize-present 只能在 humanizing 阶段完成文案自然化并展示 Prompt。"
+        )
+    humanize_metrics = runtime["stage_metrics"].get("humanize-worker")
+    if not isinstance(humanize_metrics, dict):
+        raise ValueError("humanize-worker 尚未启动。")
+    if not humanize_metrics.get("finished_at"):
+        finish_stage(
+            run_dir,
+            "humanize-worker",
+            [run_dir / "content.json"],
+            metrics,
+        )
+    transition(run_dir, "humanized")
     return display_prompt_package(run_dir)
 
 
@@ -1677,7 +1721,7 @@ def start_stage(
         )
         if session_id in set(runtime["worker_sessions"].values()):
             raise ValueError(
-                "两个 Worker 必须使用不同的无历史会话 worker_session_id。"
+                "不同 Worker 必须使用不同的无历史会话 worker_session_id。"
             )
     elif worker_session_id is not None:
         raise ValueError(f"{stage_name} 是程序执行器，不接受 Worker 会话。")
@@ -2194,9 +2238,13 @@ def parse_args() -> argparse.Namespace:
     prompt_show_parser = subparsers.add_parser("prompt-show")
     prompt_show_parser.add_argument("--run-dir", type=Path, required=True)
 
-    compose_present_parser = subparsers.add_parser("compose-present")
-    compose_present_parser.add_argument("--run-dir", type=Path, required=True)
-    compose_present_parser.add_argument("--metrics-file", type=Path)
+    compose_finish_parser = subparsers.add_parser("compose-finish")
+    compose_finish_parser.add_argument("--run-dir", type=Path, required=True)
+    compose_finish_parser.add_argument("--metrics-file", type=Path)
+
+    humanize_present_parser = subparsers.add_parser("humanize-present")
+    humanize_present_parser.add_argument("--run-dir", type=Path, required=True)
+    humanize_present_parser.add_argument("--metrics-file", type=Path)
 
     approval_pending_parser = subparsers.add_parser("approval-pending")
     approval_pending_parser.add_argument("--run-dir", type=Path, required=True)
@@ -2255,13 +2303,23 @@ def main() -> int:
             )
         elif args.command == "show":
             result = load_runtime(args.run_dir)
-        elif args.command == "compose-present":
+        elif args.command == "compose-finish":
             metrics = (
                 _load_json(args.metrics_file, "metrics file")
                 if args.metrics_file
                 else None
             )
-            result = finish_compose_and_display_prompt(
+            result = finish_compose(
+                args.run_dir,
+                metrics,
+            )
+        elif args.command == "humanize-present":
+            metrics = (
+                _load_json(args.metrics_file, "metrics file")
+                if args.metrics_file
+                else None
+            )
+            result = finish_humanize_and_display_prompt(
                 args.run_dir,
                 metrics,
             )

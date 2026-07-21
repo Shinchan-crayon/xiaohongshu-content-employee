@@ -1,6 +1,6 @@
 # 小红书内容员工
 
-面向个人创作者的小红书图文插件，当前版本：`2.0.1`。
+面向个人创作者的小红书图文插件，当前版本：`2.1.0`。
 
 ## 使用
 
@@ -23,6 +23,7 @@
 -> 锁定产品身份
 -> 提取证据和卖点
 -> 生成文案与最终 Prompt
+-> 文案自然化
 -> 展示 Prompt 和参考图关系
 -> 用户批准
 -> 并发生图
@@ -32,7 +33,8 @@
 ```
 
 Compose 阶段在同一次模型调用中生成完整文案、至少 5 个候选标题、轮播结构、全部最终
-Prompt 和每页参考图关系。主控展示完整 Prompt 包并计算稳定 SHA-256，用户
+Prompt 和每页参考图关系。随后 Humanize 阶段只改写 `content.json` 的可见文字一次，
+不改变 JSON 结构、现有排版或 `visual.json`。主控展示完整 Prompt 包并计算稳定 SHA-256，用户
 批准的哈希必须与当前 Prompt 包一致；Prompt、页面或参考图映射变化后重新进入
 待批准状态。
 
@@ -40,21 +42,23 @@ Prompt 和每页参考图关系。主控展示完整 Prompt 包并计算稳定 S
 事实转成用户场景、把特征转成具体收益、把限制转成自然建议；型号和变体只在提及
 时保持准确，官方页面标题、货号和内部审核字段不会为满足校验而塞进正文。
 
-薄主控会自动调度两个相互独立、无历史的模型 Worker 和两个 Python Executor：
+薄主控会自动调度三个相互独立、无历史的模型 Worker 和两个 Python Executor：
 
 - `Research Worker`：一次调用内研究商品页、锁定产品身份并提取证据和卖点，输出 `material.json` 与 `evidence.json`
 - `Compose Worker`：同一次调用输出 `content.json` 和 `visual.json`
+- `Humanize Worker`：一次调用内只改写 `content.json` 的标题、正文和轮播可见文字，不读取或修改 `visual.json`
 - `Produce Executor`：校验批准后用 Python 并发生图，输出 `generation.json`
 - `Deliver Executor`：全部计划图片完成后用 Python 输出默认内嵌图片的内容 HTML、独立运行日志和内部 `delivery.json`
 
-两个 Worker 使用不同的 `worker_session_id`，以 `fork_context=false` 创建，每个只
+三个 Worker 使用不同的 `worker_session_id`，以 `fork_context=false` 创建，每个只
 创建一次、等待一次、关闭一次，阶段结束后销毁上下文。两个 Executor 不创建
 Worker，也不调用内容模型。每个产品主体页都会绑定真实产品参考图，同时沿用统一
 `style_anchor` 并变化构图。
 
 正常内容任务禁止进入开发模式：不扫描完整仓库、不制定工程实施方案、不运行插件测试、
 不解释插件架构、不读取运行时代码、不做 Prompt 二次复审，也不打开 HTML、验图
-或截图。商品页研究仍正常执行；Compose 后一次程序校验并立即展示 Prompt。
+或截图。商品页研究仍正常执行；Compose 后固定执行一次文本自然化，不做检测、报告、
+重试或二次复审，再展示 Prompt。
 
 ## 状态与结构化交接
 

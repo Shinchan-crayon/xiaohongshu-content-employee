@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  ThinkAI · Codex / Claude Code / Hermes · 当前版本 <code>2.0.1</code>
+  ThinkAI · Codex / Claude Code / Hermes · 当前版本 <code>2.1.0</code>
 </p>
 
 ## 效果预览
@@ -58,6 +58,7 @@ https://github.com/Shinchan-crayon/xiaohongshu-content-employee
 -> 锁定产品身份
 -> 提取证据和卖点
 -> 生成文案与最终 Prompt
+-> 文案自然化
 -> 展示 Prompt 和参考图关系
 -> 用户批准
 -> 并发生图
@@ -67,7 +68,8 @@ https://github.com/Shinchan-crayon/xiaohongshu-content-employee
 ```
 
 Compose 阶段在同一次模型调用中生成完整文案、至少 5 个候选标题、轮播结构、全部最终
-Prompt 和每页参考图关系。主控随后展示完整 Prompt 包并计算稳定 SHA-256；
+Prompt 和每页参考图关系。随后 Humanize 阶段只对 `content.json` 的可见文字进行一次
+自然化改写，不改变 JSON 结构、现有排版或 `visual.json`。主控再展示完整 Prompt 包并计算稳定 SHA-256；
 只有用户批准的哈希与当前 Prompt 包一致，才能进入付费生图。Prompt、页面或
 参考图映射变化后必须重新展示并批准。
 
@@ -179,7 +181,7 @@ claude plugin install xiaohongshu-content-employee@xiaohongshu-content-employee
 python3 plugins/xiaohongshu-content-employee/scripts/安装工具/install_skills.py --runtime hermes
 ```
 
-安装器会安装同一套七个 Skill。已有同名 Skill 时默认不覆盖；确认升级时追加
+安装器会安装同一套八个 Skill。已有同名 Skill 时默认不覆盖；确认升级时追加
 `--force`。
 
 ## Skill 组成
